@@ -3,6 +3,7 @@ fvOptions/turbineALSource/turbineALSource.C
 fvOptions/crossFlowTurbineALSource/crossFlowTurbineALSource.C
 fvOptions/axialFlowTurbineALSource/axialFlowTurbineALSource.C
 fvOptions/actuatorLineSource/actuatorLineSource.C
+fvOptions/actuatorLineSource/actuatorFlexibleLineSource.C
 fvOptions/actuatorLineSource/actuatorLineElement/actuatorLineElement.C
 fvOptions/actuatorLineSource/actuatorLineElement/addedMassModel/addedMassModel.C
 fvOptions/actuatorLineSource/actuatorLineElement/dynamicStallModels/dynamicStallModel/dynamicStallModel.C
