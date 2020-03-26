@@ -61,7 +61,6 @@ bool Foam::fv::actuatorFlexibleLineSource::read(const dictionary& dict)
 
         // Look up information in dictionary
         coeffs_.lookup("elementProfiles") >> elementProfiles_;
-        coeffs_.lookup("elementStiffness") >> elementStiffness_;
         profileData_ = coeffs_.subDict("profileData");
         coeffs_.lookup("elementGeometry") >> elementGeometry_;
         coeffs_.lookup("nElements") >> nElements_;
@@ -127,8 +126,7 @@ void Foam::fv::actuatorFlexibleLineSource::createOutputFile()
                 << endl;
 }
 
-
-void Foam::fv::actuatorFlexibleLineSource::createElements()
+void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
 {
     elements_.setSize(nElements_);
 
@@ -148,6 +146,7 @@ void Foam::fv::actuatorFlexibleLineSource::createElements()
     List<scalar> chordLengths(nGeometryPoints);
     List<scalar> spanLengths(nGeometrySegments);
     List<vector> chordRefDirs(nGeometryPoints);
+    List<vector> stiffnesses(nGeometryPoints);
     List<scalar> pitches(nGeometryPoints);
     List<scalar> chordMounts(nGeometryPoints);
     totalLength_ = 0.0;
@@ -183,6 +182,7 @@ void Foam::fv::actuatorFlexibleLineSource::createElements()
         chordMounts[i] = elementGeometry_[i][4][0];
         // Read pitch
         pitches[i] = elementGeometry_[i][5][0];
+        stiffnesses[i] = vector(elementGeometry_[i][6][0],elementGeometry_[i][6][1],elementGeometry_[i][6][2]);
     }
 
     // Store blade root and tip locations for distance calculations
@@ -229,6 +229,8 @@ void Foam::fv::actuatorFlexibleLineSource::createElements()
         scalar chordLength;
         vector chordDirection;
         vector chordRefDirection;
+        //Need matrix?
+        vector stiffness;
         scalar spanLength = spanLengths[geometrySegmentIndex];
         spanLength /= nElementsPerSegment;
         vector spanDirection;
@@ -243,6 +245,14 @@ void Foam::fv::actuatorFlexibleLineSource::createElements()
         position = point1
                  + segment/nElementsPerSegment*pointIndex
                  + segment/nElementsPerSegment/2;
+
+		//Linearly interpolate stiffness
+        vector stiffness1 = stiffnesses[geometrySegmentIndex];
+        vector stiffness2 = stiffnesses[geometrySegmentIndex + 1];
+        vector deltaStiffnessTotal = stiffness2 - stiffness1;
+        stiffness = stiffness1
+                    + deltaStiffnessTotal/nElementsPerSegment*pointIndex
+                    + deltaStiffnessTotal/nElementsPerSegment/2;
 
         // Linearly interpolate chordLength
         scalar chordLength1 = chordLengths[geometrySegmentIndex];
@@ -304,6 +314,7 @@ void Foam::fv::actuatorFlexibleLineSource::createElements()
         dict.add("profileData", profileDataDict);
         dict.add("profileName", profileName);
         dict.add("chordLength", chordLength);
+        dict.add("stiffness", stiffness);
         dict.add("chordDirection", chordDirection);
         dict.add("chordRefDirection", chordRefDirection);
         dict.add("spanLength", spanLength);
@@ -347,6 +358,7 @@ void Foam::fv::actuatorFlexibleLineSource::createElements()
             Info<< "Pitch (degrees): " << pitch << endl;
             Info<< "Span length: " << spanLength << endl;
             Info<< "Span direction: " << spanDirection << endl;
+            Info<< "Stiffness: " << stiffness << endl;
             Info<< "Profile name index: " << elementProfileIndex << endl;
             Info<< "Profile name: " << profileName << endl;
             Info<< "writePerf: " << writeElementPerf << endl;
@@ -363,6 +375,7 @@ void Foam::fv::actuatorFlexibleLineSource::createElements()
         elements_[i].setVelocity(initialVelocity);
     }
 }
+
 
 
 void Foam::fv::actuatorFlexibleLineSource::writePerf()
@@ -494,6 +507,41 @@ void Foam::fv::actuatorFlexibleLineSource::harmonicPitching()
 }
 
 
+void Foam::fv::actuatorFlexibleLineSource::evaluateDeformation()
+{
+    // Move geometric positions for elements according to some beam theory or similar
+    //Assuming 0DoF for element 0!!!!
+    forAll(elements_, i)
+    {
+		//Replace with proper function , also rotate or pitch if needed...
+		//TODO: Add stiffness matrix and acceleration to line element
+		//Ignoring coorindate transfer and probably variation of EI along length
+		//Deformation at position of element i due to all other elements forces
+	    vector delta(0,0,0);
+		vector x = elements_[i].position();
+
+        forAll(elements_,j)
+        {
+			//Linear superpositions of Deformation contributions from all forces on all elements
+			vector ResForce=elements_[j].force() - elements_[j].structforce();
+			//X,Y,Z positions separately
+			
+			
+			vector contrib(
+			ResForce.x()/(6*elements_[j].stiffness().x()*(3*elements_[j].position().x()*pow(x.x(),2)-pow(x.x(),3)+foeppl(x.x(),elements_[j].position().x(),3))),
+			ResForce.y()/(6*elements_[j].stiffness().y()*(3*elements_[j].position().y()*pow(x.y(),2)-pow(x.y(),3)+foeppl(x.y(),elements_[j].position().y(),3))),
+			ResForce.z()/(6*elements_[j].stiffness().z()*(3*elements_[j].position().z()*pow(x.z(),2)-pow(x.z(),3)+foeppl(x.z(),elements_[j].position().z(),3)))
+			);
+			
+			delta+=contrib;
+			}
+     
+        
+        elements_[i].translate((  elements_[i].force() - elements_[i].structforce())/5000);
+        elements_[i].setStructForce(-elements_[i].force());
+    }
+}
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::fv::actuatorFlexibleLineSource::actuatorFlexibleLineSource
@@ -529,7 +577,14 @@ Foam::fv::actuatorFlexibleLineSource::actuatorFlexibleLineSource
     endEffectsActive_(false)
 {
     read(dict_);
-    createElements();
+    //First iteration to create elements and evaluate forces
+    createInitialElements();
+    //Maybe later in loop to find some equilibrium
+    //Evaluate deformation from forces and change geometry
+    evaluateDeformation();
+    //Recreate Elements 
+
+    
     if (writePerf_)
     {
         createOutputFile();
@@ -578,6 +633,22 @@ void Foam::fv::actuatorFlexibleLineSource::rotate
     }
 }
 
+Foam::scalar Foam::fv::actuatorFlexibleLineSource::foeppl
+(
+    scalar x,
+    scalar pos,
+    scalar exp
+)
+{
+if (x>pos)
+	{
+	return	0;
+	}
+	else
+	{
+	return	pow(x-pos,exp);
+	}
+}
 
 void Foam::fv::actuatorFlexibleLineSource::pitch(scalar radians)
 {
@@ -685,6 +756,7 @@ void Foam::fv::actuatorFlexibleLineSource::addSup
     {
         harmonicPitching();
     }
+	evaluateDeformation();
 
     // Zero out force field
     forceField_ *= dimensionedScalar("zero", forceField_.dimensions(), 0.0);
@@ -729,6 +801,7 @@ void Foam::fv::actuatorFlexibleLineSource::addSup
     {
         harmonicPitching();
     }
+	evaluateDeformation();
 
     const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
 
@@ -755,7 +828,7 @@ void Foam::fv::actuatorFlexibleLineSource::addSup
     {
         harmonicPitching();
     }
-
+	evaluateDeformation();
     // Zero out force field
     forceField_ *= dimensionedScalar("zero", forceField_.dimensions(), 0.0);
 

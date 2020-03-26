@@ -75,9 +75,6 @@ protected:
         //- Element profiles
         List<word> elementProfiles_;
         
-        //- Element stiffness (bending for now)
-        List<scalar> elementStiffness_;
-
         //- Number of blade elements
         label nElements_;
 
@@ -126,8 +123,11 @@ protected:
 
     // Protected Member Functions
 
-        //- Create actuator line elements
-        void createElements();
+        //- Create initial actuator line elements
+        void createInitialElements();
+
+        //- Create actuator line elements from updated positions
+        void reevaluateElements();
 
         //- Read dictionary
         bool read(const dictionary& dict);
@@ -143,6 +143,9 @@ protected:
 
         //- Execute harmonic pitching for a single time step
         void harmonicPitching();
+        
+        //Evaluate Deformation from forces and update positions
+        void evaluateDeformation();
 
 
 public:
@@ -213,7 +216,8 @@ public:
             //  correction
             void setOmega(scalar omega);
 
-
+			//Evaluate foeppl functions
+			scalar foeppl(scalar x,  scalar pos, scalar exp);
         // Evaluation
 
             //- Compute the moment about a given point

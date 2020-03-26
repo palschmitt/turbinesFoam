@@ -113,6 +113,13 @@ protected:
         //- Fluid force on element -- vector that is perpendicular to
         //  spanDirection,
         vector forceVector_;
+        
+        //- Structural force on element -- vector that is perpendicular to
+        //  spanDirection,
+        vector structforceVector_;
+        //- Structural stiffness of element -- vector that is perpendicular to
+        //  spanDirection,
+        vector stiffnessVector_;
 
         //- Reference density for incompressible case
         scalar rhoRef_;
@@ -301,6 +308,11 @@ public:
 
             //- Return force vector from element
             const vector& force();
+            
+            //- Return structural force vector from element
+            const vector& structforce();
+            //- Return stiffness vector from element
+            const vector& stiffness();
 
             //- Return relative velocity
             const vector& relativeVelocity();
@@ -365,11 +377,23 @@ public:
                 scalar radians
             );
 
+		scalar foeppl
+		(
+			scalar x,
+			scalar pos,
+			scalar exp
+		);
+
             //- Pitch the element about some fraction of the chord
             void pitch(scalar radians, scalar chordFraction=0.25);
 
             //- Set velocity of element
             void setVelocity(vector velocity);
+            
+            //Set structural force
+            void setStructForce(vector Structforce);
+            //Set stiffness 
+            void setStifffness(vector stiffness);
 
             //- Set element speed (velocity magnitude)
             void setSpeed(scalar speed);

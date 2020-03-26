@@ -912,7 +912,25 @@ void Foam::fv::actuatorLineElement::setVelocity(vector velocity)
     }
     velocity_ = velocity;
 }
+void Foam::fv::actuatorLineElement::setStructForce(vector Structforce)
+{
+    if (debug)
+    {
+        Info<< "Changing Structforce of " << name_ << " from "
+            << structforceVector_ << " to " << Structforce << endl << endl;
+    }
+    structforceVector_ = Structforce;
+}
 
+void Foam::fv::actuatorLineElement::setStifffness(vector stiffness)
+{
+    if (debug)
+    {
+        Info<< "Changing Structforce of " << name_ << " from "
+            << stiffnessVector_ << " to " << stiffness << endl << endl;
+    }
+    stiffnessVector_ = stiffness;
+}
 
 void Foam::fv::actuatorLineElement::setSpeed(scalar speed)
 {
@@ -988,6 +1006,14 @@ void Foam::fv::actuatorLineElement::scaleVelocity(scalar scale)
 const Foam::vector& Foam::fv::actuatorLineElement::force()
 {
     return forceVector_;
+}
+const Foam::vector& Foam::fv::actuatorLineElement::structforce()
+{
+    return structforceVector_;
+}
+const Foam::vector& Foam::fv::actuatorLineElement::stiffness()
+{
+    return stiffnessVector_;
 }
 
 
