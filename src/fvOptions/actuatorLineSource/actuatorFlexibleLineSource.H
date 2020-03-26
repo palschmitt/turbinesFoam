@@ -41,6 +41,7 @@ SourceFiles
 #include "actuatorLineElement.H"
 #include "cellSetOption.H"
 #include "volFieldsFwd.H"
+#include <iomanip>
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -96,6 +97,18 @@ protected:
         //- Switch for writing performance
         bool writePerf_;
 
+        //- Switch for writing VTK
+        bool writeVTK_;
+
+        //- VTK output directory name
+        fileName vtkDir_;
+
+        //- VTK file counter
+        label vtkFileSequence_;
+
+        //- VTK file ptr
+        mutable autoPtr<OFstream> vtkFilePtr_;
+
         //- Output file stream
         OFstream* outputFile_;
 
@@ -135,6 +148,9 @@ protected:
         //- Create the performance output file
         virtual void createOutputFile();
 
+        //- Create the VTK output directory
+        void createOutputDir();
+
         //- Write performance to CSV
         void writePerf();
 
@@ -146,6 +162,9 @@ protected:
         
         //Evaluate Deformation from forces and update positions
         void evaluateDeformation();
+        
+        //Does what is sais
+        void writeVTK();
 
 
 public:
