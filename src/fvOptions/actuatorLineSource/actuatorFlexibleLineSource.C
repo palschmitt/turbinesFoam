@@ -597,8 +597,8 @@ void Foam::fv::actuatorFlexibleLineSource::evaluateDeformation()
 				Info<<"Delta for element "<<i <<" is "<<delta<<endl;
 				Info<<"elements_[i].structforce()"<<elements_[i].structforce()<<endl;
 				Info<<"elements_[i].force()"<<elements_[i].force()<<endl;
-				elements_[i].translate(delta);	
 				}
+			elements_[i].translate(delta);	
 		}
 	}
 }
