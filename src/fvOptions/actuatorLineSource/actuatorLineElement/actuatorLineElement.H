@@ -119,7 +119,7 @@ protected:
         vector structforceVector_;
         //- Structural stiffness of element -- vector that is perpendicular to
         //  spanDirection,
-        vector stiffnessVector_;
+        vector stiffness_;
 
         //- Reference density for incompressible case
         scalar rhoRef_;
@@ -356,7 +356,11 @@ public:
             //  attack plus twist
             scalar inflowRefAngle();
 
-
+			const vector&  chordDirection();
+			
+			const vector&  planformNormal();
+			
+			const vector&  spanDirection();
         // Manipulation
 
             //- Translate the element's location

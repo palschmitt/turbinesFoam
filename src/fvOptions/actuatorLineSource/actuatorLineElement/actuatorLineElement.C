@@ -57,6 +57,7 @@ void Foam::fv::actuatorLineElement::read()
     dict_.lookup("freeStreamVelocity") >> freeStreamVelocity_;
     freeStreamDirection_ = freeStreamVelocity_/mag(freeStreamVelocity_);
     dict_.lookup("rootDistance") >> rootDistance_;
+    dict_.lookup("stiffness") >> stiffness_;
     dict_.lookup("velocitySampleRadius") >> velocitySampleRadius_;
     dict_.lookup("nVelocitySamples") >> nVelocitySamples_;
 
@@ -563,6 +564,7 @@ const Foam::word& Foam::fv::actuatorLineElement::name() const
 }
 
 
+
 const Foam::scalar& Foam::fv::actuatorLineElement::chordLength() const
 {
     return chordLength_;
@@ -580,7 +582,20 @@ const Foam::vector& Foam::fv::actuatorLineElement::position()
     return position_;
 }
 
+const Foam::vector& Foam::fv::actuatorLineElement::chordDirection()
+{
+    return chordDirection_;
+}			
 
+const Foam::vector& Foam::fv::actuatorLineElement::planformNormal()
+{
+    return planformNormal_;
+}			
+
+const Foam::vector& Foam::fv::actuatorLineElement::spanDirection()
+{
+    return spanDirection_;
+}
 const Foam::vector& Foam::fv::actuatorLineElement::velocity()
 {
     return velocity_;
@@ -922,14 +937,14 @@ void Foam::fv::actuatorLineElement::setStructForce(vector Structforce)
     structforceVector_ = Structforce;
 }
 
-void Foam::fv::actuatorLineElement::setStifffness(vector stiffness)
+void Foam::fv::actuatorLineElement::setStifffness(vector s)
 {
     if (debug)
     {
-        Info<< "Changing Structforce of " << name_ << " from "
-            << stiffnessVector_ << " to " << stiffness << endl << endl;
+        Info<< "Changing Stiffness of " << name_ << " from "
+            << stiffness_ << " to " << s << endl << endl;
     }
-    stiffnessVector_ = stiffness;
+    stiffness_ = s;
 }
 
 void Foam::fv::actuatorLineElement::setSpeed(scalar speed)
@@ -1013,7 +1028,7 @@ const Foam::vector& Foam::fv::actuatorLineElement::structforce()
 }
 const Foam::vector& Foam::fv::actuatorLineElement::stiffness()
 {
-    return stiffnessVector_;
+    return stiffness_;
 }
 
 

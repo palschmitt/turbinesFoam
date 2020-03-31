@@ -237,6 +237,9 @@ public:
 
 			//Evaluate foeppl functions
 			scalar foeppl(scalar x,  scalar pos, scalar exp);
+			
+			//Deflection of cantilever beam
+			scalar Cantileverdeflection(scalar x, scalar l, scalar F, scalar EI);
         // Evaluation
 
             //- Compute the moment about a given point

@@ -524,40 +524,83 @@ void Foam::fv::actuatorFlexibleLineSource::harmonicPitching()
     }
 }
 
+scalar Foam::fv::actuatorFlexibleLineSource::Cantileverdeflection(scalar x, scalar l, scalar F, scalar EI)
+{
+				scalar chordflexcontrib =0.;
+		    
+			chordflexcontrib=F*pow((l-x),3)/(6*EI)*(2-3*(l-x)/l+pow((l-x),3)/pow(l,2));
+			
+			if (x>l)
+			{
+				chordflexcontrib+=(x-l)*(F*pow(l,2)/(2*EI));
+			}
+	return chordflexcontrib;
+	}
 
 void Foam::fv::actuatorFlexibleLineSource::evaluateDeformation()
 {
-    // Move geometric positions for elements according to some beam theory or similar
-    //Assuming 0DoF for element 0!!!!
-    forAll(elements_, i)
-    {
-		//Replace with proper function , also rotate or pitch if needed...
-		//TODO: Add stiffness matrix and acceleration to line element
-		//Ignoring coorindate transfer and probably variation of EI along length
-		//Deformation at position of element i due to all other elements forces
-	    vector delta(0,0,0);
-		vector x = elements_[i].position();
 
-        forAll(elements_,j)
-        {
-			//Linear superpositions of Deformation contributions from all forces on all elements
-			vector ResForce=elements_[j].force() - elements_[j].structforce();
-			//X,Y,Z positions separately
+	//Nothing if no forces to avoid segfaults at startup
+	if (mag(force())>SMALL)
+	{
+	// Move geometric positions for elements according to some beam theory or similar
+	//Assuming 0DoF for element 0!!!!
+		forAll(elements_, i)
+		{
+			//Ignoring variation of EI along length
+			//Deformation at position of element i due to all other elements forces
+			vector delta(0,0,0);
+			//Spanwise distance
+			scalar x = mag(elements_[i].position()-elements_[0].position());	
 			
+			forAll(elements_,j)  
+			{
+				if ((i>0) && (j>0))
+				{		
+				//Linear superpositions of Deformation contributions from all forces on all elements
+				vector ResForce=elements_[j].force() - elements_[j].structforce();			
+				//Contribution in chord direction	
+				scalar Chorddirectionforce = mag(elements_[j].chordDirection()
+				* (ResForce & elements_[j].chordDirection())
+				/ magSqr(elements_[j].chordDirection()));
+				//Contribution in normal to chord direction	
+				//Info << "planformNormal"<<elements_[j].planformNormal()<<endl;
+				//Info << "ResForce"<<ResForce<<endl;
+				//Info << "Force"<<elements_[j].force()<<endl;
+				//Info << "EI1"<<elements_[j].stiffness()[0]<<endl;
+				//Info << "EI2"<<elements_[j].stiffness()[1]<<endl;
+				
+				scalar ChordNormalforce = mag(elements_[j].planformNormal()
+				* (ResForce & elements_[j].planformNormal())
+				/ magSqr(elements_[j].planformNormal()));
+				
+				//Stiffness is not integrated correctly along blade, rather use FEA?
+				scalar l = mag(elements_[j].position()-elements_[0].position());	
+				scalar chordflexcontrib = Cantileverdeflection(x,l,Chorddirectionforce,elements_[j].stiffness()[0]);	
+				scalar chordnormalflexcontrib = Cantileverdeflection(x,l,ChordNormalforce,elements_[j].stiffness()[1]);	
+				
+				//Transform back into global coordinates
+				//Shorten code  if forces are normalised?
+				vector contrib=	elements_[j].planformNormal()*chordnormalflexcontrib/mag(elements_[j].planformNormal())+
+								elements_[j].chordDirection()*chordflexcontrib/mag(elements_[j].chordDirection());
+		
+				delta+=contrib;
+				
+				//Save total force applied to each element, alternative store original position?
+				elements_[i].setStructForce(elements_[i].structforce()-elements_[i].force());
+				}
+
 			
-			vector contrib(
-			ResForce.x()/(6*elements_[j].stiffness().x()*(3*elements_[j].position().x()*pow(x.x(),2)-pow(x.x(),3)+foeppl(x.x(),elements_[j].position().x(),3))),
-			ResForce.y()/(6*elements_[j].stiffness().y()*(3*elements_[j].position().y()*pow(x.y(),2)-pow(x.y(),3)+foeppl(x.y(),elements_[j].position().y(),3))),
-			ResForce.z()/(6*elements_[j].stiffness().z()*(3*elements_[j].position().z()*pow(x.z(),2)-pow(x.z(),3)+foeppl(x.z(),elements_[j].position().z(),3)))
-			);
-			
-			delta+=contrib;
 			}
-     
-        
-        elements_[i].translate((  elements_[i].force() - elements_[i].structforce())/5000);
-        elements_[i].setStructForce(-elements_[i].force());
-    }
+			if (debug)
+			{
+				Info<<"Delta for element "<<i <<" is "<<delta<<endl;
+				Info<<"elements_[i].structforce()"<<elements_[i].structforce()<<endl;
+				Info<<"elements_[i].force()"<<elements_[i].force()<<endl;
+				elements_[i].translate(delta);	
+				}
+		}
+	}
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -1001,6 +1044,22 @@ void Foam::fv::actuatorFlexibleLineSource::writeVTK()
                 << nl;
         }
 
+
+    // Write element stiffness
+    vtkFilePtr_()
+        << "VECTORS Stiffness double "<<nl;
+
+        forAll(elements_, i)
+        {
+            vector eStiffness (elements_[i].stiffness());
+            vtkFilePtr_()
+                << eStiffness[0]
+                << " "
+                << eStiffness[1]
+                << " "
+                << eStiffness[2]
+                << nl;
+        }
     vtkFilePtr_() << endl;
 
     // Add to the VTK sequence counter
