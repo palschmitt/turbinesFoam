@@ -38,6 +38,7 @@ SourceFiles
 #include "cellSetOption.H"
 #include "NamedEnum.H"
 #include "actuatorLineSource.H"
+#include "actuatorFlexibleLineSource.H"
 #include "volFieldsFwd.H"
 #include "OFstream.H"
 

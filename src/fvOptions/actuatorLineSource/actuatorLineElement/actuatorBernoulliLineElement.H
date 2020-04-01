@@ -22,19 +22,20 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::fv::actuatorLineElement
+    Foam::fv::actuatorBernoulliLineElement
 
 Description
     An object, e.g. an airfoil, that imparts a force on the flow field
     calculated via lift and drag coefficients
+    Should be derived from original but too lazy today for nice code
 
 SourceFiles
-    actuatorLineElement.C
+    actuatorBernoulliLineElement.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef actuatorLineElement_H
-#define actuatorLineElement_H
+#ifndef actuatorBernoulliLineElement_H
+#define actuatorBernoulliLineElement_H
 
 #include "autoPtr.H"
 #include "runTimeSelectionTables.H"
@@ -56,10 +57,10 @@ namespace fv
 {
 
 /*---------------------------------------------------------------------------*\
-                        Class actuatorLineElement Declaration
+                        Class actuatorBernoulliLineElement Declaration
 \*---------------------------------------------------------------------------*/
 
-class actuatorLineElement
+class actuatorBernoulliLineElement
 {
 
 protected:
@@ -119,7 +120,7 @@ protected:
         vector structforceVector_;
         //- Structural stiffness of element -- vector that is perpendicular to
         //  spanDirection,
-        vector stiffnessVector_;
+        vector stiffness_;
 
         //- Reference density for incompressible case
         scalar rhoRef_;
@@ -251,14 +252,14 @@ protected:
 public:
 
     //- Runtime type information
-    TypeName("actuatorLineElement");
+    TypeName("actuatorBernoulliLineElement");
 
 
         // Declare run-time constructor selection table
         declareRunTimeSelectionTable
         (
             autoPtr,
-            actuatorLineElement,
+            actuatorBernoulliLineElement,
             dictionary,
             (
                 const dictionary& dict,
@@ -271,11 +272,11 @@ public:
     // Selectors
 
         //- Return a reference
-        static autoPtr<actuatorLineElement> New(const dictionary& dict);
+        static autoPtr<actuatorBernoulliLineElement> New(const dictionary& dict);
 
 
     //- Constructor
-    actuatorLineElement
+    actuatorBernoulliLineElement
     (
         const word& name,
         const dictionary& dict,
@@ -284,7 +285,7 @@ public:
 
 
     //- Destructor
-    virtual ~actuatorLineElement();
+    virtual ~actuatorBernoulliLineElement();
 
 
     // Member functions
@@ -356,7 +357,11 @@ public:
             //  attack plus twist
             scalar inflowRefAngle();
 
-
+			const vector&  chordDirection();
+			
+			const vector&  planformNormal();
+			
+			const vector&  spanDirection();
         // Manipulation
 
             //- Translate the element's location

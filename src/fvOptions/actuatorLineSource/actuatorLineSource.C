@@ -510,6 +510,31 @@ void Foam::fv::actuatorLineSource::harmonicPitching()
     }
 }
 
+void Foam::fv::actuatorLineSource::startup()
+{
+	//Ugly workaround to enable inheritance to flexible...
+    read(dict_);
+    createElements();
+    if (writePerf_)
+    {
+        createOutputFile();
+    }
+    if (writeVTK_)
+    {
+        createOutputDir();
+    }
+    if (forceField_.writeOpt() == IOobject::AUTO_WRITE)
+    {
+        forceField_.write();
+    }
+    // Calculate end effects
+    if (endEffectsActive_)
+    {
+        calcEndEffects();
+    }	
+	
+	}
+
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -548,25 +573,7 @@ Foam::fv::actuatorLineSource::actuatorLineSource
     lastMotionTime_(mesh.time().value()),
     endEffectsActive_(false)
 {
-    read(dict_);
-    createElements();
-    if (writePerf_)
-    {
-        createOutputFile();
-    }
-    if (writeVTK_)
-    {
-        createOutputDir();
-    }
-    if (forceField_.writeOpt() == IOobject::AUTO_WRITE)
-    {
-        forceField_.write();
-    }
-    // Calculate end effects
-    if (endEffectsActive_)
-    {
-        calcEndEffects();
-    }
+startup();
 }
 
 

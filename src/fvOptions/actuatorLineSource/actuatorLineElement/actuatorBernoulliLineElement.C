@@ -23,7 +23,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "actuatorLineElement.H"
+#include "actuatorBernoulliLineElement.H"
 #include "addToRunTimeSelectionTable.H"
 #include "geometricOneField.H"
 #include "fvMatrices.H"
@@ -36,15 +36,15 @@ namespace Foam
 {
 namespace fv
 {
-    defineTypeNameAndDebug(actuatorLineElement, 0);
-    defineRunTimeSelectionTable(actuatorLineElement, dictionary);
+    defineTypeNameAndDebug(actuatorBernoulliLineElement, 0);
+    defineRunTimeSelectionTable(actuatorBernoulliLineElement, dictionary);
 }
 }
 
 
 // * * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * //
 
-void Foam::fv::actuatorLineElement::read()
+void Foam::fv::actuatorBernoulliLineElement::read()
 {
     // Parse dictionary
     dict_.lookup("position") >> position_;
@@ -57,6 +57,7 @@ void Foam::fv::actuatorLineElement::read()
     dict_.lookup("freeStreamVelocity") >> freeStreamVelocity_;
     freeStreamDirection_ = freeStreamVelocity_/mag(freeStreamVelocity_);
     dict_.lookup("rootDistance") >> rootDistance_;
+    dict_.lookup("stiffness") >> stiffness_;
     dict_.lookup("velocitySampleRadius") >> velocitySampleRadius_;
     dict_.lookup("nVelocitySamples") >> nVelocitySamples_;
 
@@ -103,7 +104,7 @@ void Foam::fv::actuatorLineElement::read()
 
     if (debug)
     {
-        Info<< "actuatorLineElement properties:" << endl;
+        Info<< "actuatorBernoulliLineElement properties:" << endl;
         Info<< "Position: " << position_ << endl;
         Info<< "chordLength: " << chordLength_ << endl;
         Info<< "chordDirection: " << chordDirection_ << endl;
@@ -114,7 +115,7 @@ void Foam::fv::actuatorLineElement::read()
 }
 
 
-void Foam::fv::actuatorLineElement::rotateVector
+void Foam::fv::actuatorBernoulliLineElement::rotateVector
 (
     vector& vectorToRotate,
     vector rotationPoint,
@@ -157,7 +158,7 @@ void Foam::fv::actuatorLineElement::rotateVector
 }
 
 
-Foam::label Foam::fv::actuatorLineElement::findCell
+Foam::label Foam::fv::actuatorBernoulliLineElement::findCell
 (
     const point& location
 )
@@ -190,7 +191,7 @@ Foam::label Foam::fv::actuatorLineElement::findCell
 }
 
 
-void Foam::fv::actuatorLineElement::lookupCoefficients()
+void Foam::fv::actuatorBernoulliLineElement::lookupCoefficients()
 {
     liftCoefficient_ = profileData_.liftCoefficient(angleOfAttack_);
     dragCoefficient_ = profileData_.dragCoefficient(angleOfAttack_);
@@ -198,7 +199,7 @@ void Foam::fv::actuatorLineElement::lookupCoefficients()
 }
 
 
-Foam::scalar Foam::fv::actuatorLineElement::calcProjectionEpsilon()
+Foam::scalar Foam::fv::actuatorBernoulliLineElement::calcProjectionEpsilon()
 {
     // Lookup Gaussian coeffs from profileData dict if present
     dictionary GaussianCoeffs = profileData_.dict().subOrEmptyDict
@@ -245,7 +246,7 @@ Foam::scalar Foam::fv::actuatorLineElement::calcProjectionEpsilon()
     if (not (epsilon < VGREAT))
     {
         // Raise fatal error since mesh size cannot be detected
-        FatalErrorIn("void actuatorLineElement::applyForceField()")
+        FatalErrorIn("void actuatorBernoulliLineElement::applyForceField()")
             << "Position of " << name_  << " not found in mesh"
             << abort(FatalError);
     }
@@ -273,7 +274,7 @@ Foam::scalar Foam::fv::actuatorLineElement::calcProjectionEpsilon()
 }
 
 
-void Foam::fv::actuatorLineElement::correctFlowCurvature
+void Foam::fv::actuatorBernoulliLineElement::correctFlowCurvature
 (
     scalar& angleOfAttackRad
 )
@@ -315,7 +316,7 @@ void Foam::fv::actuatorLineElement::correctFlowCurvature
 }
 
 
-void Foam::fv::actuatorLineElement::multiplyForceRho
+void Foam::fv::actuatorBernoulliLineElement::multiplyForceRho
 (
     const volScalarField& rho
 )
@@ -333,7 +334,7 @@ void Foam::fv::actuatorLineElement::multiplyForceRho
 }
 
 
-void Foam::fv::actuatorLineElement::applyForceField
+void Foam::fv::actuatorBernoulliLineElement::applyForceField
 (
     volVectorField& forceField
 )
@@ -364,7 +365,7 @@ void Foam::fv::actuatorLineElement::applyForceField
 }
 
 
-void Foam::fv::actuatorLineElement::calculateInflowVelocity
+void Foam::fv::actuatorBernoulliLineElement::calculateInflowVelocity
 (
     const volVectorField& Uin
 )
@@ -432,7 +433,7 @@ void Foam::fv::actuatorLineElement::calculateInflowVelocity
             if (not (sampleVelocity[0] < VGREAT))
             {
                 // Raise fatal error since inflow velocity cannot be detected
-                FatalErrorIn("void actuatorLineElement::calculateForce()")
+                FatalErrorIn("void actuatorBernoulliLineElement::calculateForce()")
                     << "Inflow velocity point for " << name_
                     << " not found in mesh"
                     << abort(FatalError);
@@ -449,7 +450,7 @@ void Foam::fv::actuatorLineElement::calculateInflowVelocity
     if (not (inflowVelocity_[0] < VGREAT))
     {
         // Raise fatal error since inflow velocity cannot be detected
-        FatalErrorIn("void actuatorLineElement::calculateForce()")
+        FatalErrorIn("void actuatorBernoulliLineElement::calculateForce()")
             << "Inflow velocity point for " << name_
             << " not found in mesh"
             << abort(FatalError);
@@ -457,18 +458,18 @@ void Foam::fv::actuatorLineElement::calculateInflowVelocity
 }
 
 
-void Foam::fv::actuatorLineElement::createOutputFile()
+void Foam::fv::actuatorBernoulliLineElement::createOutputFile()
 {
     fileName dir;
 
     if (Pstream::parRun())
     {
-        dir = mesh_.time().path()/"../postProcessing/actuatorLineElements"
+        dir = mesh_.time().path()/"../postProcessing/actuatorBernoulliLineElements"
             / mesh_.time().timeName();
     }
     else
     {
-        dir = mesh_.time().path()/"postProcessing/actuatorLineElements"
+        dir = mesh_.time().path()/"postProcessing/actuatorBernoulliLineElements"
             / mesh_.time().timeName();
     }
 
@@ -485,7 +486,7 @@ void Foam::fv::actuatorLineElement::createOutputFile()
 }
 
 
-void Foam::fv::actuatorLineElement::writePerf()
+void Foam::fv::actuatorBernoulliLineElement::writePerf()
 {
     scalar time = mesh_.time().value();
 
@@ -505,7 +506,7 @@ void Foam::fv::actuatorLineElement::writePerf()
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::fv::actuatorLineElement::actuatorLineElement
+Foam::fv::actuatorBernoulliLineElement::actuatorBernoulliLineElement
 (
     const word& name,
     const dictionary& dict,
@@ -551,85 +552,99 @@ Foam::fv::actuatorLineElement::actuatorLineElement
 
 // * * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * //
 
-Foam::fv::actuatorLineElement::~actuatorLineElement()
+Foam::fv::actuatorBernoulliLineElement::~actuatorBernoulliLineElement()
 {}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-const Foam::word& Foam::fv::actuatorLineElement::name() const
+const Foam::word& Foam::fv::actuatorBernoulliLineElement::name() const
 {
     return name_;
 }
 
 
-const Foam::scalar& Foam::fv::actuatorLineElement::chordLength() const
+
+const Foam::scalar& Foam::fv::actuatorBernoulliLineElement::chordLength() const
 {
     return chordLength_;
 }
 
 
-const Foam::scalar& Foam::fv::actuatorLineElement::spanLength()
+const Foam::scalar& Foam::fv::actuatorBernoulliLineElement::spanLength()
 {
     return spanLength_;
 }
 
 
-const Foam::vector& Foam::fv::actuatorLineElement::position()
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::position()
 {
     return position_;
 }
 
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::chordDirection()
+{
+    return chordDirection_;
+}			
 
-const Foam::vector& Foam::fv::actuatorLineElement::velocity()
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::planformNormal()
+{
+    return planformNormal_;
+}			
+
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::spanDirection()
+{
+    return spanDirection_;
+}
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::velocity()
 {
     return velocity_;
 }
 
 
-const Foam::vector& Foam::fv::actuatorLineElement::relativeVelocity()
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::relativeVelocity()
 {
     return relativeVelocity_;
 }
 
 
-const Foam::vector& Foam::fv::actuatorLineElement::relativeVelocityGeom()
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::relativeVelocityGeom()
 {
     return relativeVelocityGeom_;
 }
 
 
-const Foam::scalar& Foam::fv::actuatorLineElement::angleOfAttack()
+const Foam::scalar& Foam::fv::actuatorBernoulliLineElement::angleOfAttack()
 {
     return angleOfAttack_;
 }
 
 
-const Foam::scalar& Foam::fv::actuatorLineElement::angleOfAttackGeom()
+const Foam::scalar& Foam::fv::actuatorBernoulliLineElement::angleOfAttackGeom()
 {
     return angleOfAttackGeom_;
 }
 
 
-const Foam::scalar& Foam::fv::actuatorLineElement::liftCoefficient()
+const Foam::scalar& Foam::fv::actuatorBernoulliLineElement::liftCoefficient()
 {
     return liftCoefficient_;
 }
 
 
-const Foam::scalar& Foam::fv::actuatorLineElement::dragCoefficient()
+const Foam::scalar& Foam::fv::actuatorBernoulliLineElement::dragCoefficient()
 {
     return dragCoefficient_;
 }
 
 
-const Foam::scalar& Foam::fv::actuatorLineElement::momentCoefficient()
+const Foam::scalar& Foam::fv::actuatorBernoulliLineElement::momentCoefficient()
 {
     return momentCoefficient_;
 }
 
 
-Foam::scalar Foam::fv::actuatorLineElement::tangentialRefCoefficient()
+Foam::scalar Foam::fv::actuatorBernoulliLineElement::tangentialRefCoefficient()
 {
     return profileData_.convertToCRT
     (
@@ -640,14 +655,14 @@ Foam::scalar Foam::fv::actuatorLineElement::tangentialRefCoefficient()
 }
 
 
-Foam::scalar Foam::fv::actuatorLineElement::tangentialRefForce()
+Foam::scalar Foam::fv::actuatorBernoulliLineElement::tangentialRefForce()
 {
     return 0.5 * chordLength_ * tangentialRefCoefficient()
         * magSqr(relativeVelocity_);
 }
 
 
-Foam::scalar Foam::fv::actuatorLineElement::normalRefCoefficient()
+Foam::scalar Foam::fv::actuatorBernoulliLineElement::normalRefCoefficient()
 {
     return profileData_.convertToCRN
     (
@@ -658,14 +673,14 @@ Foam::scalar Foam::fv::actuatorLineElement::normalRefCoefficient()
 }
 
 
-Foam::scalar Foam::fv::actuatorLineElement::normalRefForce()
+Foam::scalar Foam::fv::actuatorBernoulliLineElement::normalRefForce()
 {
     return 0.5 * chordLength_ * normalRefCoefficient()
         * magSqr(relativeVelocity_);
 }
 
 
-Foam::scalar Foam::fv::actuatorLineElement::inflowRefAngle()
+Foam::scalar Foam::fv::actuatorBernoulliLineElement::inflowRefAngle()
 {
     // Calculate inflow velocity angle in degrees (AFTAL Phi)
     scalar inflowVelAngleRad = acos
@@ -677,13 +692,13 @@ Foam::scalar Foam::fv::actuatorLineElement::inflowRefAngle()
 }
 
 
-const Foam::scalar& Foam::fv::actuatorLineElement::rootDistance()
+const Foam::scalar& Foam::fv::actuatorBernoulliLineElement::rootDistance()
 {
     return rootDistance_;
 }
 
 
-void Foam::fv::actuatorLineElement::calculateForce
+void Foam::fv::actuatorBernoulliLineElement::calculateForce
 (
     const volVectorField& Uin
 )
@@ -696,7 +711,7 @@ void Foam::fv::actuatorLineElement::calculateForce
 
     if (debug)
     {
-        Info<< "Calculating force contribution from actuatorLineElement "
+        Info<< "Calculating force contribution from actuatorBernoulliLineElement "
             << name_ << endl;
         Info<< "    position: " << position_ << endl;
         Info<< "    chordDirection: " << chordDirection_ << endl;
@@ -805,7 +820,7 @@ void Foam::fv::actuatorLineElement::calculateForce
 }
 
 
-void Foam::fv::actuatorLineElement::rotate
+void Foam::fv::actuatorBernoulliLineElement::rotate
 (
     vector rotationPoint,
     vector axis,
@@ -837,7 +852,7 @@ void Foam::fv::actuatorLineElement::rotate
 
     if (debug)
     {
-        Info<< "Rotating actuatorLineElement: " << name_ << endl;
+        Info<< "Rotating actuatorBernoulliLineElement: " << name_ << endl;
         Info<< "Rotation point: " << rotationPoint << endl;
         Info<< "Rotation axis: " << axis << endl;
         Info<< "Rotation angle (radians): " << radians << endl;
@@ -885,7 +900,7 @@ void Foam::fv::actuatorLineElement::rotate
 }
 
 
-void Foam::fv::actuatorLineElement::pitch
+void Foam::fv::actuatorBernoulliLineElement::pitch
 (
     scalar radians,
     scalar chordFraction
@@ -897,13 +912,13 @@ void Foam::fv::actuatorLineElement::pitch
 }
 
 
-void Foam::fv::actuatorLineElement::translate(vector translationVector)
+void Foam::fv::actuatorBernoulliLineElement::translate(vector translationVector)
 {
     position_ += translationVector;
 }
 
 
-void Foam::fv::actuatorLineElement::setVelocity(vector velocity)
+void Foam::fv::actuatorBernoulliLineElement::setVelocity(vector velocity)
 {
     if (debug)
     {
@@ -912,7 +927,7 @@ void Foam::fv::actuatorLineElement::setVelocity(vector velocity)
     }
     velocity_ = velocity;
 }
-void Foam::fv::actuatorLineElement::setStructForce(vector Structforce)
+void Foam::fv::actuatorBernoulliLineElement::setStructForce(vector Structforce)
 {
     if (debug)
     {
@@ -922,17 +937,17 @@ void Foam::fv::actuatorLineElement::setStructForce(vector Structforce)
     structforceVector_ = Structforce;
 }
 
-void Foam::fv::actuatorLineElement::setStifffness(vector stiffness)
+void Foam::fv::actuatorBernoulliLineElement::setStifffness(vector s)
 {
     if (debug)
     {
-        Info<< "Changing Structforce of " << name_ << " from "
-            << stiffnessVector_ << " to " << stiffness << endl << endl;
+        Info<< "Changing Stiffness of " << name_ << " from "
+            << stiffness_ << " to " << s << endl << endl;
     }
-    stiffnessVector_ = stiffness;
+    stiffness_ = s;
 }
 
-void Foam::fv::actuatorLineElement::setSpeed(scalar speed)
+void Foam::fv::actuatorBernoulliLineElement::setSpeed(scalar speed)
 {
     if (mag(velocity_) > 0)
     {
@@ -942,7 +957,7 @@ void Foam::fv::actuatorLineElement::setSpeed(scalar speed)
 }
 
 
-void Foam::fv::actuatorLineElement::setSpeed
+void Foam::fv::actuatorBernoulliLineElement::setSpeed
 (
     vector point,
     vector axis,
@@ -997,27 +1012,27 @@ void Foam::fv::actuatorLineElement::setSpeed
 }
 
 
-void Foam::fv::actuatorLineElement::scaleVelocity(scalar scale)
+void Foam::fv::actuatorBernoulliLineElement::scaleVelocity(scalar scale)
 {
     velocity_ *= scale;
 }
 
 
-const Foam::vector& Foam::fv::actuatorLineElement::force()
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::force()
 {
     return forceVector_;
 }
-const Foam::vector& Foam::fv::actuatorLineElement::structforce()
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::structforce()
 {
     return structforceVector_;
 }
-const Foam::vector& Foam::fv::actuatorLineElement::stiffness()
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::stiffness()
 {
-    return stiffnessVector_;
+    return stiffness_;
 }
 
 
-Foam::vector Foam::fv::actuatorLineElement::moment(vector point)
+Foam::vector Foam::fv::actuatorBernoulliLineElement::moment(vector point)
 {
     // Calculate radius vector
     vector radius = position_ - point;
@@ -1029,7 +1044,7 @@ Foam::vector Foam::fv::actuatorLineElement::moment(vector point)
 }
 
 
-void Foam::fv::actuatorLineElement::addSup
+void Foam::fv::actuatorBernoulliLineElement::addSup
 (
     fvMatrix<vector>& eqn,
     volVectorField& forceField
@@ -1067,7 +1082,7 @@ void Foam::fv::actuatorLineElement::addSup
 }
 
 
-void Foam::fv::actuatorLineElement::addSup
+void Foam::fv::actuatorBernoulliLineElement::addSup
 (
     const volScalarField& rho,
     fvMatrix<vector>& eqn,
@@ -1112,7 +1127,7 @@ void Foam::fv::actuatorLineElement::addSup
 }
 
 
-void Foam::fv::actuatorLineElement::addTurbulence
+void Foam::fv::actuatorBernoulliLineElement::addTurbulence
 (
     fvMatrix<scalar>& eqn,
     word fieldName
@@ -1170,31 +1185,31 @@ void Foam::fv::actuatorLineElement::addTurbulence
 }
 
 
-void Foam::fv::actuatorLineElement::setDynamicStallActive(bool active)
+void Foam::fv::actuatorBernoulliLineElement::setDynamicStallActive(bool active)
 {
     dynamicStallActive_ = active;
 }
 
 
-void Foam::fv::actuatorLineElement::setOmega(scalar omega)
+void Foam::fv::actuatorBernoulliLineElement::setOmega(scalar omega)
 {
     omega_ = omega;
 }
 
 
-void Foam::fv::actuatorLineElement::setEndEffectFactor(scalar factor)
+void Foam::fv::actuatorBernoulliLineElement::setEndEffectFactor(scalar factor)
 {
     endEffectFactor_ = factor;
 }
 
 
-void Foam::fv::actuatorLineElement::setVelocitySampleRadius(scalar radius)
+void Foam::fv::actuatorBernoulliLineElement::setVelocitySampleRadius(scalar radius)
 {
     velocitySampleRadius_ = radius;
 }
 
 
-void Foam::fv::actuatorLineElement::setNVelocitySamples(label nSamples)
+void Foam::fv::actuatorBernoulliLineElement::setNVelocitySamples(label nSamples)
 {
     nVelocitySamples_ = nSamples;
 }

@@ -56,7 +56,7 @@ namespace fv
 
 class actuatorLineSource
 :
-    public cellSetOption
+     public virtual cellSetOption
 {
 
 protected:
@@ -156,6 +156,9 @@ protected:
 
         //- Execute harmonic pitching for a single time step
         void harmonicPitching();
+        
+        void startup();
+
 
         //- Actuator line VTK writer
         void writeVTK();
