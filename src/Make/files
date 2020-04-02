@@ -1,5 +1,6 @@
 interpolations/interpolateUtils.C
 fvOptions/turbineALSource/turbineALSource.C
+fvOptions/turbineALSource/turbineFALSource.C
 fvOptions/crossFlowTurbineALSource/crossFlowTurbineALSource.C
 fvOptions/axialFlowTurbineALSource/axialFlowTurbineALSource.C
 fvOptions/axialFlowTurbineFlexibleALSource/axialFlowTurbineFlexibleALSource.C

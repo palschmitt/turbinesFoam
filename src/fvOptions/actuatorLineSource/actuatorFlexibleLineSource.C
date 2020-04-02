@@ -367,7 +367,7 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
 
         if (debug)
         {
-            Info<< "Creating actuatorLineElement: " << name << endl;
+            Info<< "Creating actuatorBernoulliLineElement: " << name << endl;
             Info<< "Geometry segment index: " << geometrySegmentIndex << endl;
             Info<< "Position: " << position << endl;
             Info<< "Chord length: " << chordLength << endl;
@@ -396,9 +396,133 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
 
 
 
+void Foam::fv::actuatorFlexibleLineSource::writePerf()
+{
+    scalar time = mesh_.time().value();
+    scalar totalArea = 0.0;
+    scalar x = 0.0;
+    scalar y = 0.0;
+    scalar z = 0.0;
+    scalar relVelMag = 0.0;
+    scalar alphaDeg = 0.0;
+    scalar alphaGeom = 0.0;
+    scalar cl = 0.0;
+    scalar cd = 0.0;
+    scalar cm = 0.0;
+
+    forAll(elements_, i)
+    {
+        scalar area = elements_[i].chordLength()*elements_[i].spanLength();
+        totalArea += area;
+        vector pos = elements_[i].position();
+        x += pos[0]; y += pos[1]; z += pos[2];
+        relVelMag += mag(elements_[i].relativeVelocity())*area;
+        alphaDeg += elements_[i].angleOfAttack()*area;
+        alphaGeom += elements_[i].angleOfAttackGeom()*area;
+        cl += elements_[i].liftCoefficient()*area;
+        cd += elements_[i].dragCoefficient()*area;
+        cm += elements_[i].momentCoefficient()*area;
+    }
+
+    x /= nElements_; y /= nElements_; z /= nElements_;
+    relVelMag /= totalArea;
+    alphaDeg /= totalArea;
+    alphaGeom /= totalArea;
+    cl /= totalArea; cd /= totalArea; cm /= totalArea;
+
+    // write time,x,y,z,rel_vel_mag,alpha_deg,alpha_geom_deg,cl,cd,cm
+    *outputFile_<< time << "," << x << "," << y << "," << z << "," << relVelMag
+                << "," << alphaDeg << "," << alphaGeom << "," << cl << ","
+                << cd << "," << cm << endl;
+}
 
 
+void Foam::fv::actuatorFlexibleLineSource::calcEndEffects()
+{
+    if (debug)
+    {
+        Info<< "Calculating end effects for " << name_ << endl;
+    }
 
+    scalar pi = Foam::constant::mathematical::pi;
+    List<scalar> c(nElements_, 1.0); // Chord lengths
+    List<scalar> alpha(nElements_, 0.1); // Geometric AoA in radians
+    List<scalar> theta(nElements_); // Span distance rescaled on [0, pi]
+    List<scalar> relVelMag(nElements_, 1.0);
+    simpleMatrix<scalar> D(nElements_, 0.0, 0.1);
+    List<scalar> A(nElements_); // Fourier coefficients
+    List<scalar> circulation(nElements_);
+    List<scalar> cl(nElements_);
+
+    // Create lists from element parameters
+    forAll(elements_, n)
+    {
+        theta[n] = elements_[n].rootDistance()*pi;
+        c[n] = elements_[n].chordLength();
+        //~ alpha[n] = Foam::degToRad(elements_[n].angleOfAttackGeom());
+        //~ relVelMag[n] = mag(elements_[n].relativeVelocityGeom());
+    }
+
+    // Create D matrix
+    forAll(elements_, i)
+    {
+        scalar n = i + 1;
+        forAll(elements_, m)
+        {
+            D[m][i] = 2.0*totalLength_/(pi*c[m])*sin(n*theta[m])
+                    + n*sin(n*theta[m]) / sin(theta[m]);
+        }
+        D.source()[i] = alpha[i];
+    }
+    A = D.solve();
+
+    forAll(elements_, m)
+    {
+        scalar sumA = 0.0;
+        forAll(elements_, i)
+        {
+            scalar n = i + 1;
+            sumA += A[i]*sin(n*theta[m]);
+        }
+        circulation[m] = 2*totalLength_*relVelMag[m]*sumA;
+        cl[m] = circulation[m]/(0.5*c[m]*relVelMag[m]);
+    }
+
+    // Set endEffectFactor for all elements
+    List<scalar> factors = cl/Foam::max(cl);
+    forAll(elements_, i)
+    {
+        elements_[i].setEndEffectFactor(factors[i]);
+    }
+
+    if (debug == 2)
+    {
+        Info<< "Debug output from actuatorFlexibleLineSource::calcEndEffects:" << endl;
+        Info<< "theta: " << theta << endl;
+        Info<< "A: " << A << endl;
+        Info<< "c: " << c << endl;
+        Info<< "D.source: " << D.source() << endl;
+        Info<< "D: " << D << endl;
+        Info<< "cl: " << cl << endl;
+        Info<< "factors:" << factors << endl;
+    }
+}
+
+
+void Foam::fv::actuatorFlexibleLineSource::harmonicPitching()
+{
+    // Pitch the actuator line if time has changed
+    scalar t = mesh_.time().value();
+    if (t != lastMotionTime_)
+    {
+        scalar omega = reducedFreq_*2*mag(freeStreamVelocity_)/chordLength_;
+        scalar dt = mesh_.time().deltaT().value();
+        scalar deltaPitch = degToRad(pitchAmplitude_)*(sin(omega*t)
+                          - sin(omega*(t - dt)));
+        pitch(deltaPitch);
+        lastMotionTime_ = t;
+    }
+}
 
 scalar Foam::fv::actuatorFlexibleLineSource::Cantileverdeflection(scalar x, scalar l, scalar F, scalar EI)
 {
@@ -480,6 +604,7 @@ void Foam::fv::actuatorFlexibleLineSource::evaluateDeformation()
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
 Foam::fv::actuatorFlexibleLineSource::actuatorFlexibleLineSource
 (
     const word& name,
@@ -488,7 +613,6 @@ Foam::fv::actuatorFlexibleLineSource::actuatorFlexibleLineSource
     const fvMesh& mesh
 )
 :
-actuatorLineSource(name,    modelType,    dict,    mesh),
     cellSetOption(name, modelType, dict, mesh),
     force_(vector::zero),
     forceField_
@@ -523,6 +647,8 @@ actuatorLineSource(name,    modelType,    dict,    mesh),
     //Evaluate deformation from forces and change geometry
     evaluateDeformation();
     //Recreate Elements 
+
+    
     if (writePerf_)
     {
         createOutputFile();
@@ -551,6 +677,29 @@ Foam::fv::actuatorFlexibleLineSource::~actuatorFlexibleLineSource()
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+void Foam::fv::actuatorFlexibleLineSource::printCoeffs() const
+{
+    // Print turbine properties
+    Info<< "Actuator line properties:" << endl;
+    Info<< "Profile data:" << endl;
+    Info<< profileData_ << endl;
+    Info<< "First item of element geometry:" << endl;
+    Info<< elementGeometry_[0] << endl;
+}
+
+
+void Foam::fv::actuatorFlexibleLineSource::rotate
+(
+    vector rotationPoint,
+    vector axis,
+    scalar radians
+)
+{
+    forAll(elements_, i)
+    {
+        elements_[i].rotate(rotationPoint, axis, radians, true);
+    }
+}
 
 Foam::scalar Foam::fv::actuatorFlexibleLineSource::foeppl
 (
@@ -567,6 +716,100 @@ if (x>pos)
 	{
 	return	pow(x-pos,exp);
 	}
+}
+
+void Foam::fv::actuatorFlexibleLineSource::pitch(scalar radians)
+{
+    forAll(elements_, i)
+    {
+        elements_[i].pitch(radians);
+    }
+}
+
+
+void Foam::fv::actuatorFlexibleLineSource::pitch(scalar radians, scalar chordFraction)
+{
+    forAll(elements_, i)
+    {
+        elements_[i].pitch(radians, chordFraction);
+    }
+}
+
+
+void Foam::fv::actuatorFlexibleLineSource::translate(vector translationVector)
+{
+    forAll(elements_, i)
+    {
+        elements_[i].translate(translationVector);
+    }
+}
+
+
+void Foam::fv::actuatorFlexibleLineSource::setSpeed
+(
+    vector point,
+    vector axis,
+    scalar omega
+)
+{
+    forAll(elements_, i)
+    {
+        elements_[i].setSpeed(point, axis, omega);
+    }
+}
+
+
+void Foam::fv::actuatorFlexibleLineSource::scaleVelocity(scalar scale)
+{
+    forAll(elements_, i)
+    {
+        elements_[i].scaleVelocity(scale);
+    }
+}
+
+
+void Foam::fv::actuatorFlexibleLineSource::setOmega(scalar omega)
+{
+    forAll(elements_, i)
+    {
+        elements_[i].setOmega(omega);
+    }
+}
+
+
+const Foam::vector& Foam::fv::actuatorFlexibleLineSource::force()
+{
+    return force_;
+}
+
+
+const Foam::volVectorField& Foam::fv::actuatorFlexibleLineSource::forceField()
+{
+    return forceField_;
+}
+
+
+PtrList<Foam::fv::actuatorBernoulliLineElement>& Foam::fv::actuatorFlexibleLineSource::elements()
+{
+    return elements_;
+}
+
+
+Foam::vector Foam::fv::actuatorFlexibleLineSource::moment(vector point)
+{
+    vector moment(vector::zero);
+    forAll(elements_, i)
+    {
+        moment += elements_[i].moment(point);
+    }
+
+    if (debug)
+    {
+        Info<< "Moment on " << name_ << " about " << point << ": " << moment
+            << endl;
+    }
+
+    return moment;
 }
 
 

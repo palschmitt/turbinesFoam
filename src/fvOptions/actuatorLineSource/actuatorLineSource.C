@@ -573,6 +573,7 @@ Foam::fv::actuatorLineSource::actuatorLineSource
     lastMotionTime_(mesh.time().value()),
     endEffectsActive_(false)
 {
+	 
 startup();
 }
 
