@@ -829,6 +829,7 @@ void Foam::fv::actuatorBernoulliLineElement::rotate
 )
 {
     // Declare and define the rotation matrix (from SOWFA)
+    //Why not use quaternions or rodrigues formula?
     tensor RM;
     scalar angle = radians;
     RM.xx() = Foam::sqr(axis.x())
@@ -862,10 +863,11 @@ void Foam::fv::actuatorBernoulliLineElement::rotate
         Info<< "Initial spanDirection: " << spanDirection_ << endl;
         Info<< "Initial velocity: " << velocity_ << endl;
     }
-
-    // Rotation matrices make a rotation about the origin, so need to subtract
+    
+      // Rotation matrices make a rotation about the origin, so need to subtract
     // rotation point off the point to be rotated.
-    vector point = position_;
+    vector point = position_;  
+    
     point -= rotationPoint;
 
     // Perform the rotation.
@@ -881,7 +883,7 @@ void Foam::fv::actuatorBernoulliLineElement::rotate
     // Rotate the span and chord vectors of the element
     chordDirection_ = RM & chordDirection_;
     spanDirection_ = RM & spanDirection_;
-
+     structforceVector_ = RM & structforceVector_;
     // Rotate the element's velocity vector if specified
     if (rotateVelocity)
     {
