@@ -221,7 +221,6 @@ void Foam::fv::axialFlowTurbineFlexibleALSource::createBlades()
             elementGeometry[j][6][1] = EI2;
             elementGeometry[j][6][2] = EI3;
         }
-	Info<< "Made it to here!"<<endl;
 
         // Add frontal area to list
         frontalArea = mathematical::pi*magSqr(maxRadius);

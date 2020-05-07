@@ -526,7 +526,7 @@ void Foam::fv::actuatorFlexibleLineSource::harmonicPitching()
 
 scalar Foam::fv::actuatorFlexibleLineSource::Cantileverdeflection(scalar x, scalar l, scalar F, scalar EI)
 {
-				scalar chordflexcontrib =0.;
+			scalar chordflexcontrib =0.;
 		    
 			chordflexcontrib=F*pow((l-x),3)/(6*EI)*(2-3*(l-x)/l+pow((l-x),3)/pow(l,2));
 			
@@ -557,36 +557,30 @@ void Foam::fv::actuatorFlexibleLineSource::evaluateDeformation()
 			{
 				if ((i>0) && (j>0))
 				{		
-				//Linear superpositions of Deformation contributions from all forces on all elements
+				//Linear superpositions of Deformation contributions from all forces on all elements relatve to element 0 chord and normal direction
 				vector ResForce=elements_[j].force() - elements_[j].structforce();			
 				//Contribution in chord direction	
-				scalar Chorddirectionforce = mag(elements_[j].chordDirection()
-				* (ResForce & elements_[j].chordDirection())
-				/ magSqr(elements_[j].chordDirection()));
+				scalar Chorddirectionforce = mag(elements_[0].chordDirection()
+				* (ResForce & elements_[0].chordDirection())
+				/ magSqr(elements_[0].chordDirection()));
 				//Contribution in normal to chord direction	
-				//Info << "planformNormal"<<elements_[j].planformNormal()<<endl;
-				//Info << "ResForce"<<ResForce<<endl;
-				//Info << "Force"<<elements_[j].force()<<endl;
-				//Info << "EI1"<<elements_[j].stiffness()[0]<<endl;
-				//Info << "EI2"<<elements_[j].stiffness()[1]<<endl;
+				scalar ChordNormalforce = mag(elements_[0].planformNormal()
+				* (ResForce & elements_[0].planformNormal())
+				/ magSqr(elements_[0].planformNormal()));
 				
-				scalar ChordNormalforce = mag(elements_[j].planformNormal()
-				* (ResForce & elements_[j].planformNormal())
-				/ magSqr(elements_[j].planformNormal()));
-				
-				//Stiffness is not integrated correctly along blade, rather use FEA?
+				//Stiffness is not integrated correctly along blade, rather use FEA or adjust formula...
 				scalar l = mag(elements_[j].position()-elements_[0].position());	
 				scalar chordflexcontrib = Cantileverdeflection(x,l,Chorddirectionforce,elements_[j].stiffness()[0]);	
 				scalar chordnormalflexcontrib = Cantileverdeflection(x,l,ChordNormalforce,elements_[j].stiffness()[1]);	
 				
 				//Transform back into global coordinates
 				//Shorten code  if forces are normalised?
-				vector contrib=	elements_[j].planformNormal()*chordnormalflexcontrib/mag(elements_[j].planformNormal())+
-								elements_[j].chordDirection()*chordflexcontrib/mag(elements_[j].chordDirection());
+				vector contrib=	elements_[0].planformNormal()*chordnormalflexcontrib/mag(elements_[0].planformNormal())+
+								elements_[0].chordDirection()*chordflexcontrib/mag(elements_[0].chordDirection());
 		
 				delta+=contrib;
 				
-				//Save total force applied to each element, alternative store original position?
+				//Save total force applied to each element, better alternative store original position?
 				elements_[i].setStructForce(elements_[i].structforce()-elements_[i].force());
 				}
 
