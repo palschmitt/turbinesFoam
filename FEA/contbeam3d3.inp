@@ -1,0 +1,32 @@
+nodes dof dim
+ 2    6    3
+ no. of nodes
+ 3
+ x
+0.0 0.0 0.0
+5.0 0.0 0.0
+10.0 0.0 00
+no. of elements
+ 2
+ end1 end2 mat sect
+ 1    2    1    1
+ 2    3    1    1
+ no. of material types
+  1 
+ E  Poisson  Density
+30.0e6  0.2      2.4
+no. of sectionl types
+  2 
+ A        Iz       Iy          J        alpha
+0.625 0.00325521  0.00325521    0.0015    0
+0.15   0.00001      0.00001     0.0015    0
+no. of restraints
+ 2 
+restraints
+  1 1 1 1 1 0 0 0.0 0.0 0.0 0.0 0.0 0.0
+  3 1 1 1 0 0 0 0.0 0.0 0.0 0.0 0.0 0.0
+no. of loads
+  1 
+loads
+2    0.0 0.0 -50.0 0.0 0.0 0.0
+
