@@ -1,4 +1,5 @@
 interpolations/interpolateUtils.C
+FEA/FrameAnalysis.C
 fvOptions/turbineALSource/turbineALSource.C
 fvOptions/turbineALSource/turbineFALSource.C
 fvOptions/crossFlowTurbineALSource/crossFlowTurbineALSource.C

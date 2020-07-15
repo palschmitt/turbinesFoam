@@ -1,5 +1,7 @@
 %Dummy to test inputs for beam analysis
-
+global K Kff Kfr Krf Krr;
+global Ff Fr deff defr;
+global nnodes nnode nelems ndof;
 %Element type
 nnode=2; %Number of nodes per element
 ndof=3 
@@ -43,10 +45,10 @@ restraints=[1 1 1 1 1 1 ;
 0 0 0 0 0 0 ;
 0 0 0 0 0 0 ;
 0 0 0 0 0 0 ;
+0 0 0 0 0 0 ;
 0 0 0 0 0 0 ];
 %E and Poisson per element
 mats=[30.0e6  0.2;
-30.0e6  0.2;
 30.0e6  0.2;
 30.0e6  0.2;
 30.0e6  0.2;
@@ -78,9 +80,11 @@ loads=[0 0 0 0 0 0 ;
 1 0 0 0 0 0 ;
 0 0 0 0 0 0 ;
 0 0 0 0 0 0 ;
+0 0 0 0 0 0 ;
 0 0 0 0 0 0 ];
 %Deformation X Y Z RX RY RZ per element
 prescribed=[0 0 0 0 0 0 ;
+0 0 0 0 0 0 ;
 0 0 0 0 0 0 ;
 0 0 0 0 0 0 ;
 0 0 0 0 0 0 ;

@@ -23,7 +23,7 @@
 ## Author: Pal <pal@Fix>
 ## Created: 2020-07-13
 
-function beam1(nodes,elems,restraints,mats,sects,loads,prescribed)
+function nodedisp=beam1(nodes,elems,restraints,mats,sects,loads,prescribed)
 global K Kff Kfr Krf Krr;
 global Ff Fr deff defr;
 global nnodes nnode nelems ndof;
