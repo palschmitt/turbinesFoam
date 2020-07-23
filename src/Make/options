@@ -9,9 +9,10 @@ EXE_INC = \
     -I$(LIB_SRC)/TurbulenceModels/turbulenceModels/lnInclude \
     -I$(LIB_SRC)/TurbulenceModels/compressible/lnInclude \
     -I$(LIB_SRC)/fvOptions/lnInclude \
-    -g -O0
+    -g -O0 -Wall
 
 LIB_LIBS = \
+	-larmadillo -llapack -lblas\
     -lfiniteVolume \
     -lsampling \
     -lmeshTools \

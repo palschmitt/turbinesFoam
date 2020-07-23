@@ -57,7 +57,9 @@ void Foam::fv::actuatorBernoulliLineElement::read()
     dict_.lookup("freeStreamVelocity") >> freeStreamVelocity_;
     freeStreamDirection_ = freeStreamVelocity_/mag(freeStreamVelocity_);
     dict_.lookup("rootDistance") >> rootDistance_;
-    dict_.lookup("stiffness") >> stiffness_;
+    dict_.lookup("material") >> material_;
+    dict_.lookup("section") >> sects_;
+    dict_.lookup("restraints") >> restraints_;
     dict_.lookup("velocitySampleRadius") >> velocitySampleRadius_;
     dict_.lookup("nVelocitySamples") >> nVelocitySamples_;
 
@@ -939,14 +941,33 @@ void Foam::fv::actuatorBernoulliLineElement::setStructForce(vector Structforce)
     structforceVector_ = Structforce;
 }
 
-void Foam::fv::actuatorBernoulliLineElement::setStifffness(vector s)
+
+void Foam::fv::actuatorBernoulliLineElement::setSects(List<scalar> s)
 {
     if (debug)
     {
-        Info<< "Changing Stiffness of " << name_ << " from "
-            << stiffness_ << " to " << s << endl << endl;
+        Info<< "Changing Section Data of " << name_ << " from "
+            << sects_ << " to " << s << endl << endl;
     }
-    stiffness_ = s;
+    sects_ = s;
+}
+void Foam::fv::actuatorBernoulliLineElement::setMaterial(List<scalar> s)
+{
+    if (debug)
+    {
+        Info<< "Changing Section Data of " << name_ << " from "
+            << sects_ << " to " << s << endl << endl;
+    }
+    material_ = s;
+}
+void Foam::fv::actuatorBernoulliLineElement::setRestraint(List<int> s)
+{
+    if (debug)
+    {
+        Info<< "Changing Restrained of " << name_ << " from "
+            << restraints_ << " to " << s << endl << endl;
+    }
+    restraints_ = s;
 }
 
 void Foam::fv::actuatorBernoulliLineElement::setSpeed(scalar speed)
@@ -1028,10 +1049,19 @@ const Foam::vector& Foam::fv::actuatorBernoulliLineElement::structforce()
 {
     return structforceVector_;
 }
-const Foam::vector& Foam::fv::actuatorBernoulliLineElement::stiffness()
+const Foam::List<int>& Foam::fv::actuatorBernoulliLineElement::restraints()
 {
-    return stiffness_;
+    return restraints_;
 }
+const Foam::List<scalar>& Foam::fv::actuatorBernoulliLineElement::sects()
+{
+    return sects_;
+}
+const Foam::List<scalar>& Foam::fv::actuatorBernoulliLineElement::material()
+{
+    return material_;
+}
+
 
 
 Foam::vector Foam::fv::actuatorBernoulliLineElement::moment(vector point)

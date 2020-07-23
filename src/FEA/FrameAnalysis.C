@@ -32,7 +32,55 @@ License
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+arma::Mat<double> Foam::FrameAnalysis::List2Mat(const List<List<scalar>>& InputList)
+{
+arma::Mat<double> Mat(InputList.size(),InputList[0].size());
+//Must be more fficient way, fix later
+forAll(InputList, k)
+	{
+		forAll(InputList[k],l)
+			{
+			Mat(k,l)=InputList[k][l];
+			};
+		};
+	
+	
+	return Mat;
+}
 
+const Foam::List<Foam::List<Foam::scalar>> Foam::FrameAnalysis::Mat2List(const arma::Mat<double>& Mat)
+{
+	List<List<Foam::scalar>> OutPut;
+	OutPut.resize(Mat.n_rows);
+	List<Foam::scalar> SubList;
+	for (uint j=0;j<Mat.n_rows;j++)
+	{
+		SubList.resize(Mat.n_cols);
+		for (uint i=0;i<Mat.n_cols;i++)
+		{
+			SubList[i]=Mat(j,i);
+			}
+		OutPut[j]=SubList;
+	}
+	return OutPut;
+	}
+
+
+arma::Mat<int> Foam::FrameAnalysis::List2intMat(const List<List<int>>& InputList)
+{
+arma::Mat<int> Mat(InputList.size(),InputList[0].size());
+//Must be more fficient way, fix later
+forAll(InputList, k)
+	{
+		forAll(InputList[k],l)
+			{
+			Mat(k,l)=InputList[k][l];
+			};
+		};
+	
+	
+	return Mat;
+}
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
@@ -43,8 +91,32 @@ Foam::FrameAnalysis::FrameAnalysis()
     {}
 
 
-Foam::FrameAnalysis::FrameAnalysis(const List<vector>& Input_)
-{}
+Foam::FrameAnalysis::FrameAnalysis
+(
+const List<List<scalar>>& 	nodes,
+const List<List<int>>& 		elems,
+const List<List<int>>& 		restraints,
+const List<List<scalar>>&  	mats,
+const List<List<scalar>>&  	sects,
+const List<List<scalar>>&  	loads,
+const List<List<scalar>>&  	prescribed
+)
+{
+//Create and set correspinding armadillo Matrices
+
+nelems_=elems.size();
+nnodes_=nodes.size();
+nnode_=2; //Not variable at the moment, beam element has 6DoF
+ndof_=6;
+nodes_=List2Mat(nodes);
+elems_=List2intMat(elems);
+restraints_=List2intMat(restraints);
+sects_=List2Mat(sects);
+loads_=List2Mat(loads);
+mats_=List2Mat(mats);
+prescribed_=List2Mat(prescribed);
+beam1();//Evaluate deformation
+}
 
 
 Foam::FrameAnalysis::FrameAnalysis(const FrameAnalysis&)
@@ -68,7 +140,331 @@ Foam::FrameAnalysis::~FrameAnalysis()
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
+const arma::Mat<double>&  Foam::FrameAnalysis::nodedisp()
+{
+	return nodedisp_;
+	}
+	
+const Foam::List<Foam::List<Foam::scalar>> Foam::FrameAnalysis::nodedispList()
+{
+	return Mat2List(nodedisp_);
+	}
+	
+void Foam::FrameAnalysis::beam1()
+{
+	Ke_.zeros(nnode_*ndof_,nnode_*ndof_); 
+    K_.zeros(nnodes_*ndof_,nnodes_*ndof_);
 
+// Evaluate element stiffness matrix
+// and assemble overall matrix
+  for(ielem_=0; ielem_ < nelems_;ielem_++)
+  {
+    E_=mats_(ielem_,0);
+    Poi_=mats_(ielem_,1);
+    G_=E_/(2*(1+Poi_));
+    A_=sects_(ielem_,0);
+    Iz_=sects_(ielem_,1);
+    Iy_=sects_(ielem_,2);
+    J_=sects_(ielem_,3);
+    alpha_=sects_(ielem_,4);
+    //Check for nicer way of doing this
+    elnodes_.zeros(2,1) ;
+    elnodes_(0)=elems_(ielem_,0);
+    elnodes_(1)=elems_(ielem_,1);
+    dx_=nodes_(elnodes_(1),0)-nodes_(elnodes_(0),0);
+    dy_=nodes_(elnodes_(1),1)-nodes_(elnodes_(0),1);
+    dz_=nodes_(elnodes_(1),2)-nodes_(elnodes_(0),2);   
+    arma::vec L = {dx_, dy_, dz_};
+    L_=arma::norm(L);
+    Cx_=dx_/L_;
+    Cy_=dy_/L_;
+    Cz_=dz_/L_;
+    arma::vec L2={Cx_, Cz_};
+    Cxz_=arma::norm(L2);
+    vert_=false;
+    if(dx_==0 && dz_==0)
+    {
+       vert_=true;
+    }
+    Ke_=elemstiff();
+    assem();
+}
+
+
+// Obtain the new order for DOF
+neworder();
+
+totdof_=nnodes_*ndof_;
+Kff_.zeros(nfree_,nfree_);
+Kfr_.zeros(nfree_,totdof_-nfree_);
+Krf_.zeros(totdof_-nfree_,nfree_);
+Krr_.zeros(totdof_-nfree_,totdof_-nfree_);
+Ff_.zeros(nfree_,1);
+Fr_.zeros(nfree_,1);
+defr_.zeros(totdof_-nfree_,1);
+
+
+// reorder sttifness matrix and partition matrix
+reorder();
+loading();
+predisp();
+
+
+// solve for deflections
+deff_=solve(Kff_,(Ff_-Kfr_*defr_));
+
+// Find reactions
+Fr_=Krf_*deff_+Krr_*defr_;
+
+// Plot deformed shape
+nodaldisp();
+//plotdisp(nodes,elems,nodedisp);
+	
+	}
+
+arma::Mat<double> Foam::FrameAnalysis::elemstiff()
+{
+	//Ke=zeros(nnode*ndof); 
+	
+	// A = { {1, 3, 5},
+   //       {2, 4, 6} };
+scalar L2=pow(L_,2);
+scalar L3=pow(L_,3);
+
+//Make E,A, L,,Iz...,Cx.. function paramaters and remove from global	
+    Ke_={{E_*A_/L_,0,0,0,0,0,-E_*A_/L_,0,0,0,0,0},
+        {0,12*E_*Iz_/L3,0,0,0,6*E_*Iz_/L2,0,-12*E_*Iz_/L3,0,0,0,6*E_*Iz_/L2},
+        {0,0,12*E_*Iy_/L3,0,-6*E_*Iy_/L2,0,0,0,-12*E_*Iy_/L3,0,-6*E_*Iy_/L2,0},
+        {0,0,0,J_*G_/L_,0,0,0,0,0,-J_*G_/L_,0,0},
+        {0,0,-6*E_*Iy_/L2,0,4*E_*Iy_/L_,0,0,0,6*E_*Iy_/L2,0,2*E_*Iy_/L_,0},
+        {0,6*E_*Iz_/L2,0,0,0,4*E_*Iz_/L_,0,-6*E_*Iz_/L2,0,0,0,2*E_*Iz_/L_},
+        {-E_*A_/L_,0,0,0,0,0,E_*A_/L_,0,0,0,0,0},
+        {0,-12*E_*Iz_/L3,0,0,0,-6*E_*Iz_/L2,0,12*E_*Iz_/L3,0,0,0,-6*E_*Iz_/L2},
+        {0,0,-12*E_*Iy_/L3,0,6*E_*Iy_/L2,0,0,0,12*E_*Iy_/L3,0,6*E_*Iy_/L2,0},
+        {0,0,0,-J_*G_/L_,0,0,0,0,0,J_*G_/L_,0,0},
+        {0,0,-6*E_*Iy_/L2,0,2*E_*Iy_/L_,0,0,0,6*E_*Iy_/L2,0,4*E_*Iy_/L_,0},
+        {0,6*E_*Iz_/L2,0,0,0,2*E_*Iz_/L_,0,-6*E_*Iz_/L2,0,0,0,4*E_*Iz_/L_}};
+    
+    arma::Mat<double> T;
+    T.zeros(nnode_*ndof_, nnode_*ndof_);
+    alpha_=degToRad(alpha_);
+    
+    scalar r11;
+    scalar r12;
+    scalar r13;
+    scalar r21;
+    scalar r22;
+    scalar r23;
+    scalar r31;
+    scalar r32;
+    scalar r33;
+    
+    
+    if (!vert_)
+    {
+       r11=Cx_;
+       r12=Cy_;
+       r13=Cz_;
+       r21=(-dot(dot(Cx_,Cy_),cos(alpha_))-dot(Cz_,sin(alpha_)))/Cxz_;
+       r22=dot(Cxz_,cos(alpha_));
+       r23=(-dot(dot(Cx_,Cz_),cos(alpha_))-dot(Cx_,sin(alpha_)))/Cxz_;
+       r31=dot(dot(dot(Cx_,Cy_),sin(alpha_))-dot(Cz_,cos(alpha_))/Cxz_, dot(Cxz_,sin(alpha_)));
+       r32=dot(Cxz_,sin(alpha_));
+       r33=(Cx_*Cy_*sin(alpha_)+Cx_*cos(alpha_))/Cxz_;
+   }
+    else
+    {
+        r11=0;
+        r12=Cy_;
+        r13=0;
+        r21=-Cy_*cos(alpha_);
+        r22=0;
+        r23=sin(alpha_);
+        r31=Cy_*sin(alpha_);
+        r32=0;
+        r33=cos(alpha_);
+	}
+    
+    T={{r11,r12,r13,0,0,0,0,0,0,0,0,0},
+       {r21,r22,r23,0,0,0,0,0,0,0,0,0},
+       {r31,r32,r33,0,0,0,0,0,0,0,0,0},
+       {0,0,0,r11,r12,r13,0,0,0,0,0,0},
+       {0,0,0,r21,r22,r23,0,0,0,0,0,0},
+       {0,0,0,r31,r32,r33,0,0,0,0,0,0},
+       {0,0,0,0,0,0,r11,r12,r13,0,0,0},
+       {0,0,0,0,0,0,r21,r22,r23,0,0,0},
+       {0,0,0,0,0,0,r31,r32,r33,0,0,0},
+       {0,0,0,0,0,0,0,0,0,r11,r12,r13},
+       {0,0,0,0,0,0,0,0,0,r21,r22,r23}, 
+       {0,0,0,0,0,0,0,0,0,r31,r32,r33}};
+   
+    Ke_=T.t()*Ke_*T;
+	return Ke_;
+	}
+
+
+void Foam::FrameAnalysis::assem()
+{
+	scalar ipos,ipose,jpos,jpose;
+
+	 for (int innode=0;innode< nnode_; innode++)
+	 {
+        ipos=(elnodes_(innode))*ndof_;
+        ipose=(innode)*ndof_;
+        for (int jnnode=0;jnnode<nnode_;jnnode++)
+        {
+            jpos=(elnodes_(jnnode))*ndof_;
+            jpose=(jnnode)*ndof_;
+            for (int idof=0; idof<ndof_;idof++ )
+            {
+                for (int jdof=0; jdof<ndof_; jdof++)
+                {
+                    K_(ipos+idof,jpos+jdof)=K_(ipos+idof,jpos+jdof)+Ke_(ipose+idof,jpose+jdof);
+				}
+			}
+		}
+	}
+}
+
+void Foam::FrameAnalysis::neworder()
+{
+		//ielem_=0; ielem_ < nelems_;ielem_++
+	int 	ivalue;
+	int nrestraints, ifree;
+	totdof_=nnodes_*ndof_;
+    order1_.zeros(1,totdof_);
+    order2_.zeros(1,totdof_);
+    int irestraint=0;
+    int icount=0;
+    arma::Mat<int> restraintlist;
+    restraintlist.zeros(1,totdof_);
+    for (int inode=0; inode<nnodes_;inode++)
+    {
+        for (int idof=0; idof<ndof_; idof++)
+        {
+            ivalue=restraints_(inode,idof);
+            restraintlist(icount)=ivalue;
+            icount=icount+1;
+            if (ivalue== int(1))
+            {
+                irestraint=irestraint+1;
+            }
+        }
+    }
+    nrestraints=irestraint;
+    nfree_=totdof_-nrestraints;
+   
+    irestraint=0;
+    ifree=0;
+    for (int idof=0;idof<totdof_; idof++)
+    {
+        if(restraintlist(idof) == 1)
+        {
+            order1_(nfree_+irestraint)=idof;
+            order2_(idof)=nfree_+irestraint;
+            irestraint=irestraint+1;
+		}
+        else
+        {
+            order1_(ifree)=idof;
+            order2_(idof)=ifree;
+            ifree=ifree+1;
+        }
+    }   
+	
+	}
+
+void Foam::FrameAnalysis::reorder()
+{
+	int ipos,jpos;
+	totdof_=nnodes_*ndof_;
+    for (uint idof=0;idof<totdof_;idof++)
+    {
+        for (uint jdof=0;jdof<totdof_;jdof++)
+        {
+            ipos=order2_(idof);
+            jpos=order2_(jdof);
+            if (ipos+1 <= nfree_ && jpos+1 <=nfree_)
+                Kff_(ipos,jpos)=K_(idof,jdof);
+            else if (ipos+1 > nfree_ && jpos+1 <=nfree_)
+                Krf_(ipos-nfree_,jpos)=K_(idof,jdof);
+            else if (ipos+1 <= nfree_ && jpos+1 > nfree_)
+                Kfr_(ipos,jpos-nfree_)=K_(idof,jdof);
+            else
+                Krr_(ipos-nfree_,jpos-nfree_)=K_(idof,jdof);
+            
+        }
+    }
+
+}
+
+void  Foam::FrameAnalysis::loading()
+{
+	scalar ivalue;
+	int ipos;
+	totdof_=nnodes_*ndof_;
+    arma::Mat<double>  loadvector;
+    loadvector.zeros(1,totdof_);
+    int icount=0;
+    for (int inode=0; inode<nnodes_; inode++)
+    {
+        for (int idof=0;idof<ndof_; idof++)
+        {
+            ivalue=loads_(inode,idof);
+            loadvector(icount)=ivalue;
+            icount=icount+1;
+        }
+    }
+    for (int idof=0; idof<totdof_;idof++)
+    {
+        ipos=order2_(idof);
+        if (ipos+1 <= nfree_)
+            Ff_(ipos)=loadvector(idof);
+        else 
+            Fr_(ipos-nfree_)=loadvector(idof);
+        
+    }    
+	}
+
+
+void Foam::FrameAnalysis::predisp()
+{
+	totdof_=nnodes_*ndof_;
+	scalar ivalue;
+	int ipos1,ipos2;
+    arma::Mat<double>  dispvector;
+    dispvector.zeros(1,totdof_);
+    int icount=0;
+    for (int inode=0;inode<nnodes_;inode++)
+    {
+        for (int idof=0;idof<ndof_;idof++)
+        {
+            ivalue=prescribed_(inode,idof);
+            dispvector(icount)=ivalue;
+            icount=icount+1;
+        }
+    }
+    for (int idof=0; idof<totdof_;idof++)
+    {
+        ipos1=order2_(idof);
+        ipos2=order2_(idof)-nfree_;
+        if (ipos1+1 > nfree_)
+            defr_(ipos2)=dispvector(idof);
+        
+    }    
+	}
+
+void Foam::FrameAnalysis::nodaldisp()
+{
+
+	double totdof_=ndof_*nnodes_;
+    nodedisp_.zeros(totdof_,1);
+    for (int idof=0;idof<nfree_;idof++)
+    {
+        nodedisp_(order1_(idof))=deff_(idof);  
+	}
+    
+	}
 // * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * * //
 
 //void Foam::FrameAnalysis::operator=(const FrameAnalysis& rhs)

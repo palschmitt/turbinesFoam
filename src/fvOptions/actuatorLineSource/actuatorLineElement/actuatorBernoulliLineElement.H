@@ -87,6 +87,7 @@ protected:
 
         //- Span direction -- direction about which element will pitch
         //  Can be obtained by sweeping chord direction into planform normal
+        // Unit Length?
         vector spanDirection_;
 
         //- Element span length, for calculating force
@@ -120,7 +121,9 @@ protected:
         vector structforceVector_;
         //- Structural stiffness of element -- vector that is perpendicular to
         //  spanDirection,
-        vector stiffness_;
+        List<scalar> material_;// E  Poisson
+        List<scalar> sects_;//Section data A        Iz       Iy          J        alpha
+        List<int> restraints_;//restrained X Y Z Rx Ry Rz 0 or 1
 
         //- Reference density for incompressible case
         scalar rhoRef_;
@@ -313,7 +316,9 @@ public:
             //- Return structural force vector from element
             const vector& structforce();
             //- Return stiffness vector from element
-            const vector& stiffness();
+            const List<scalar>& sects();
+            const List<scalar>& material();
+            const List<int>& restraints();
 
             //- Return relative velocity
             const vector& relativeVelocity();
@@ -397,8 +402,10 @@ public:
             
             //Set structural force
             void setStructForce(vector Structforce);
-            //Set stiffness 
-            void setStifffness(vector stiffness);
+            
+            void setSects(List<scalar> sects);            
+            void setMaterial(List<scalar> material);            
+            void setRestraint(List<int> restraint);            
 
             //- Set element speed (velocity magnitude)
             void setSpeed(scalar speed);

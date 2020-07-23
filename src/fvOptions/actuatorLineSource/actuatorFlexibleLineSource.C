@@ -164,11 +164,15 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
     List<scalar> chordLengths(nGeometryPoints);
     List<scalar> spanLengths(nGeometrySegments);
     List<vector> chordRefDirs(nGeometryPoints);
-    List<vector> stiffnesses(nGeometryPoints);
     List<scalar> pitches(nGeometryPoints);
     List<scalar> chordMounts(nGeometryPoints);
     totalLength_ = 0.0;
     chordLength_ = 0.0;
+	//FEA Data
+    List<List<scalar>> materials(nGeometryPoints);
+    List<List<scalar>> sections(nGeometryPoints);
+    List<List<scalar>> restraints(nGeometryPoints);
+
 
     forAll(points, i)
     {
@@ -200,7 +204,9 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
         chordMounts[i] = elementGeometry_[i][4][0];
         // Read pitch
         pitches[i] = elementGeometry_[i][5][0];
-        stiffnesses[i] = vector(elementGeometry_[i][6][0],elementGeometry_[i][6][1],elementGeometry_[i][6][2]);
+        materials[i] = elementGeometry_[i][6];
+        sections[i] = elementGeometry_[i][7];
+		restraints[i] = elementGeometry_[i][8]; 
     }
 
     // Store blade root and tip locations for distance calculations
@@ -248,13 +254,17 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
         vector chordDirection;
         vector chordRefDirection;
         //Need matrix?
-        vector stiffness;
+        List<scalar> material(2);
+        List<scalar> section(5);
+        List<int> restraint(6,0.);
+	
         scalar spanLength = spanLengths[geometrySegmentIndex];
         spanLength /= nElementsPerSegment;
         vector spanDirection;
         scalar pitch;
         scalar chordMount;
         vector initialVelocity;
+        
 
         // Linearly interpolate position
         vector point1 = points[geometrySegmentIndex];
@@ -264,14 +274,42 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
                  + segment/nElementsPerSegment*pointIndex
                  + segment/nElementsPerSegment/2;
 
-		//Linearly interpolate stiffness
-        vector stiffness1 = stiffnesses[geometrySegmentIndex];
-        vector stiffness2 = stiffnesses[geometrySegmentIndex + 1];
-        vector deltaStiffnessTotal = stiffness2 - stiffness1;
-        stiffness = stiffness1
-                    + deltaStiffnessTotal/nElementsPerSegment*pointIndex
-                    + deltaStiffnessTotal/nElementsPerSegment/2;
-
+		//Linearly interpolate List element by element
+		//Include dimension check?
+		//material //scalar
+		for (int j=0.; j<2;j++)
+		{
+		scalar material1 = materials[geometrySegmentIndex][j];
+        scalar material2 = materials[geometrySegmentIndex + 1][j];
+        scalar deltamaterialTotal = material1 - material2;
+        material[j] = material1
+                    + deltamaterialTotal/nElementsPerSegment*pointIndex
+                    + deltamaterialTotal/nElementsPerSegment/2;
+			}
+			
+		//Include dimension check?
+		//Section Data //scalar
+		for (int j=0.; j<5;j++)
+		{
+		scalar section1 = sections[geometrySegmentIndex][j];
+        scalar section2 = sections[geometrySegmentIndex + 1][j];
+        scalar deltasectionTotal = section1 - section2;
+        section[j] = section1
+                    + deltasectionTotal/nElementsPerSegment*pointIndex
+                    + deltasectionTotal/nElementsPerSegment/2;
+			}
+			
+		//Include dimension check? 
+		//Do not interpolate restraint! Simply apply first
+		//restraint int
+		if (i==0)
+			{
+			for (int j=0.; j<6;j++)
+			{
+				restraint[j] = restraints[geometrySegmentIndex][j];
+			}						
+			}
+	
         // Linearly interpolate chordLength
         scalar chordLength1 = chordLengths[geometrySegmentIndex];
         scalar chordLength2 = chordLengths[geometrySegmentIndex + 1];
@@ -332,7 +370,6 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
         dict.add("profileData", profileDataDict);
         dict.add("profileName", profileName);
         dict.add("chordLength", chordLength);
-        dict.add("stiffness", stiffness);
         dict.add("chordDirection", chordDirection);
         dict.add("chordRefDirection", chordRefDirection);
         dict.add("spanLength", spanLength);
@@ -340,6 +377,9 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
         dict.add("freeStreamVelocity", freeStreamVelocity_);
         dict.add("chordMount", chordMount);
         dict.add("rootDistance", rootDistance);
+        dict.add("material", material);
+        dict.add("section", section);
+        dict.add("restraints", restraint);
         dict.add("addedMass", coeffs_.lookupOrDefault("addedMass", false));
         dict.add
         (
@@ -376,7 +416,6 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
             Info<< "Pitch (degrees): " << pitch << endl;
             Info<< "Span length: " << spanLength << endl;
             Info<< "Span direction: " << spanDirection << endl;
-            Info<< "Stiffness: " << stiffness << endl;
             Info<< "Profile name index: " << elementProfileIndex << endl;
             Info<< "Profile name: " << profileName << endl;
             Info<< "writePerf: " << writeElementPerf << endl;
@@ -539,62 +578,179 @@ scalar Foam::fv::actuatorFlexibleLineSource::Cantileverdeflection(scalar x, scal
 
 void Foam::fv::actuatorFlexibleLineSource::evaluateDeformation()
 {
+//Create input data for FEA Analysis
+Info <<"Number of elements " <<nElements_ <<endl;
+List<List<scalar>> nodes;
+nodes.resize(nElements_+1);
+List<List<int>>	elems;
+elems.resize(nElements_);
+List<List<int>> restraints;
+restraints.resize(nElements_+1);
+List<List<scalar>>  mats;
+mats.resize(nElements_);
+List<List<scalar>>  sects;
+sects.resize(nElements_);
+List<List<scalar>>  loads;
+loads.resize(nElements_+1);
+List<List<scalar>>  prescribed;
+prescribed.resize(nElements_+1);
+List<scalar> SubList;//Ugly workaround
+List<int> SubiList;//Ugly workaround
 
-	//Nothing if no forces to avoid segfaults at startup
-	if (mag(force())>SMALL)
+//AL Line element positions are nodes of FEA model
+//Get position +- spanwidth*spandirection as nodes positions
+
+vector Position=elements_[0].position()-elements_[0].spanDirection()/mag(elements_[0].spanDirection())*elements_[0].spanLength()/2.;
+SubList.clear();
+SubList.resize(3);
+SubList[0]=Position.x();
+SubList[1]=Position.y();
+SubList[2]=Position.z();
+nodes[0]=(SubList);
+
+//Distributing fluid force at center of element 50/50 to both nodes
+SubList.clear();
+SubList=0.;
+SubList.resize(6);
+SubList[0]=elements_[0].force().x()/2;
+SubList[1]=elements_[0].force().y()/2;
+SubList[2]=elements_[0].force().z()/2;
+loads[0]=SubList;//Fluid force, moments still missing
+
+restraints[nElements_]=elements_[0].restraints();//Using restraind defined at first node, impossible to define restrained at last node!
+SubList.resize(6);
+SubList=0.;
+prescribed[nElements_]=SubList;//Apply previous deformation?
+
+
+
+
+	forAll(elements_, i)
 	{
-	// Move geometric positions for elements according to some beam theory or similar
-	//Assuming 0DoF for element 0!!!!
-		forAll(elements_, i)
-		{
-			//Ignoring variation of EI along length
-			//Deformation at position of element i due to all other elements forces
-			vector delta(0,0,0);
-			//Spanwise distance
-			scalar x = mag(elements_[i].position()-elements_[0].position());	
-			
-			forAll(elements_,j)  
-			{
-				if ((i>0) && (j>0))
-				{		
-				//Linear superpositions of Deformation contributions from all forces on all elements relatve to element 0 chord and normal direction
-				vector ResForce=elements_[j].force() - elements_[j].structforce();			
-				//Contribution in chord direction	
-				scalar Chorddirectionforce = mag(elements_[0].chordDirection()
-				* (ResForce & elements_[0].chordDirection())
-				/ magSqr(elements_[0].chordDirection()));
-				//Contribution in normal to chord direction	
-				scalar ChordNormalforce = mag(elements_[0].planformNormal()
-				* (ResForce & elements_[0].planformNormal())
-				/ magSqr(elements_[0].planformNormal()));
-				
-				//Stiffness is not integrated correctly along blade, rather use FEA or adjust formula...
-				scalar l = mag(elements_[j].position()-elements_[0].position());	
-				scalar chordflexcontrib = Cantileverdeflection(x,l,Chorddirectionforce,elements_[j].stiffness()[0]);	
-				scalar chordnormalflexcontrib = Cantileverdeflection(x,l,ChordNormalforce,elements_[j].stiffness()[1]);	
-				
-				//Transform back into global coordinates
-				//Shorten code  if forces are normalised?
-				vector contrib=	elements_[0].planformNormal()*chordnormalflexcontrib/mag(elements_[0].planformNormal())+
-								elements_[0].chordDirection()*chordflexcontrib/mag(elements_[0].chordDirection());
 		
-				delta+=contrib;
+		//Data per node		
+		vector Position=elements_[i].position()+elements_[i].spanDirection()/mag(elements_[i].spanDirection())*elements_[i].spanLength()/2.;
+		SubList.clear();
+		SubList.resize(3);
+		SubList=0.;
+		SubList[0]=Position.x();
+		SubList[1]=Position.y();
+		SubList[2]=Position.z();
+		nodes[i+1]=SubList;
+		
+		
+		restraints[i]=elements_[i].restraints();//Using restraind defined at first node, impossible to define restrained at last node!
+		
+
+		//List of forces in XYZ
+		//Distributing fluid force at center of element 50/50 to both nodes
+		SubList.clear();
+		SubList=0.;
+		SubList.resize(6);
+		SubList[0]=elements_[i].force().x()/2+loads[i][0];
+		SubList[1]=elements_[i].force().y()/2+loads[i][1];
+		SubList[2]=elements_[i].force().z()/2+loads[i][2];
+		loads[i]=SubList;//Fluid force
+		SubList.clear();
+		SubList=0.;
+		SubList.resize(6);
+		SubList[0]=elements_[i].force().x()/2;
+		SubList[1]=elements_[i].force().y()/2;
+		SubList[2]=elements_[i].force().z()/2;
+		loads[i+1]=SubList;//Fluid force
+		
+		SubList.clear();
+		SubList.resize(6);
+		SubList=0.;
+		prescribed[i]=SubList;//Apply previous deformation?
+
+		//Data below per element
+		
+		SubiList.clear();
+		SubiList=0.;
+		SubiList.resize(2);
+		SubiList[0]=i;
+		SubiList[1]=i+1;
+		elems[i]=SubiList;//FEA Element connections are simply Node(N) to Node(N+1);
+		mats[i]=elements_[i].material();// E  Poisson
+		Info <<"Material of element "<< i << " is "<<elements_[i].material() <<endl;
+		sects[i]=elements_[i].sects();//Section data A        Iz       Iy          J        alpha
+		Info <<"e Element Sections " <<elements_[i].sects() <<endl;
+		
+
+		}	
+		
+		
+//Create FA and apply returned discplacement
+Info<< "Input for Frame Analysis: "<< endl;
+Info<< "nodes: "<<nodes<< endl;
+Info<< "elems: "<<elems<< endl;
+Info<< "restraints: "<<restraints<< endl;
+Info<< "mats: "<<mats<< endl;
+Info<< "sects: "<<sects<< endl;
+Info<< "loads: "<<loads<< endl;
+Info<< "prescribed: "<<prescribed<< endl;
+
+
+
+FrameAnalysis FA(nodes,elems,restraints, mats,sects,loads,prescribed);
+Info<< "Returned from FEA Analysis "<<FA.nodedispList()<< endl;
+
+	////Nothing if no forces to avoid segfaults at startup
+	//if (mag(force())>SMALL)
+	//{
+	//// Move geometric positions for elements according to some beam theory or similar
+	////Assuming 0DoF for element 0!!!!
+		//forAll(elements_, i)
+		//{
+			////Ignoring variation of EI along length
+			////Deformation at position of element i due to all other elements forces
+			//vector delta(0,0,0);
+			////Spanwise distance
+			//scalar x = mag(elements_[i].position()-elements_[0].position());	
+			
+			//forAll(elements_,j)  
+			//{
+				//if ((i>0) && (j>0))
+				//{		
+				////Linear superpositions of Deformation contributions from all forces on all elements relatve to element 0 chord and normal direction
+				//vector ResForce=elements_[j].force() - elements_[j].structforce();			
+				////Contribution in chord direction	
+				//scalar Chorddirectionforce = mag(elements_[0].chordDirection()
+				//* (ResForce & elements_[0].chordDirection())
+				/// magSqr(elements_[0].chordDirection()));
+				////Contribution in normal to chord direction	
+				//scalar ChordNormalforce = mag(elements_[0].planformNormal()
+				//* (ResForce & elements_[0].planformNormal())
+				/// magSqr(elements_[0].planformNormal()));
 				
-				//Save total force applied to each element, better alternative store original position?
-				elements_[i].setStructForce(elements_[i].structforce()-elements_[i].force());
-				}
+				////Stiffness is not integrated correctly along blade, rather use FEA or adjust formula...
+				//scalar l = mag(elements_[j].position()-elements_[0].position());	
+				//scalar chordflexcontrib = Cantileverdeflection(x,l,Chorddirectionforce,elements_[j].stiffness()[0]);	
+				//scalar chordnormalflexcontrib = Cantileverdeflection(x,l,ChordNormalforce,elements_[j].stiffness()[1]);	
+				
+				////Transform back into global coordinates
+				////Shorten code  if forces are normalised?
+				//vector contrib=	elements_[0].planformNormal()*chordnormalflexcontrib/mag(elements_[0].planformNormal())+
+								//elements_[0].chordDirection()*chordflexcontrib/mag(elements_[0].chordDirection());
+		
+				//delta+=contrib;
+				
+				////Save total force applied to each element, better alternative store original position?
+				//elements_[i].setStructForce(elements_[i].structforce()-elements_[i].force());
+				//}
 
 			
-			}
-			if (debug)
-			{
-				Info<<"Delta for element "<<i <<" is "<<delta<<endl;
-				Info<<"elements_[i].structforce()"<<elements_[i].structforce()<<endl;
-				Info<<"elements_[i].force()"<<elements_[i].force()<<endl;
-				}
-			elements_[i].translate(delta);	
-		}
-	}
+			//}
+			//if (debug)
+			//{
+				//Info<<"Delta for element "<<i <<" is "<<delta<<endl;
+				//Info<<"elements_[i].structforce()"<<elements_[i].structforce()<<endl;
+				//Info<<"elements_[i].force()"<<elements_[i].force()<<endl;
+				//}
+			//elements_[i].translate(delta);	
+		//}
+	//}
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -1039,22 +1195,22 @@ void Foam::fv::actuatorFlexibleLineSource::writeVTK()
         }
 
 
-    // Write element stiffness
-    vtkFilePtr_()
-        << "VECTORS Stiffness double "<<nl;
+    //// Write element stiffness
+    //vtkFilePtr_()
+        //<< "List Stiffness double "<<nl;
 
-        forAll(elements_, i)
-        {
-            vector eStiffness (elements_[i].stiffness());
-            vtkFilePtr_()
-                << eStiffness[0]
-                << " "
-                << eStiffness[1]
-                << " "
-                << eStiffness[2]
-                << nl;
-        }
-    vtkFilePtr_() << endl;
+        //forAll(elements_, i)
+        //{
+            //vector eStiffness (elements_[i].stiffness());
+            //vtkFilePtr_()
+                //<< eStiffness[0]
+                //<< " "
+                //<< eStiffness[1]
+                //<< " "
+                //<< eStiffness[2]
+                //<< nl;
+        //}
+    //vtkFilePtr_() << endl;
 
     // Add to the VTK sequence counter
     vtkFileSequence_++;

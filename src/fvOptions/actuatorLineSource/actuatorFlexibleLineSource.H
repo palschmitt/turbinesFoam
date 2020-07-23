@@ -39,6 +39,7 @@ SourceFiles
 #include "dictionary.H"
 #include "vector.H"
 #include "actuatorBernoulliLineElement.H"
+#include "FrameAnalysis.H"
 #include "cellSetOption.H"
 #include "volFieldsFwd.H"
 #include <iomanip>

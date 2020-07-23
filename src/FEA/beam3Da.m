@@ -252,7 +252,7 @@ end
 function [nodes,elems,restraints,mats,sects,loads,prescribed]=readindata()
    global nnodes nnode nelems ndof; 
    %[filename,pathname]=uigetfile('*.inp');
-   filename="contbeam3d1.inp";
+   filename="contbeam3d2.inp";
    pathname="./";
    fid=fopen([pathname,filename],'r');
    textline=fgetl(fid);
