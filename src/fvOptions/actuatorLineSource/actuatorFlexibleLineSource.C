@@ -578,6 +578,110 @@ scalar Foam::fv::actuatorFlexibleLineSource::Cantileverdeflection(scalar x, scal
 
 void Foam::fv::actuatorFlexibleLineSource::evaluateDeformation()
 {
+	
+/*////////////////Debugging Data///////////////////////////////////////
+//Create input data for FEA Analysis
+Info <<"Number of elements " <<"2" <<endl;
+List<List<scalar>> nodes;
+nodes.resize(3);
+nodes[0].append(0.);
+nodes[0].append(0.);
+nodes[0].append(0.);
+nodes[1].append(5.);
+nodes[1].append(0.);
+nodes[1].append(0.);
+nodes[2].append(10.);
+nodes[2].append(0.);
+nodes[2].append(0.);
+
+
+List<List<int>>	elems;
+elems.resize(2);
+elems[0].append(0);
+elems[0].append(1);
+elems[1].append(1);
+elems[1].append(2);
+
+List<List<int>> restraints;
+restraints.resize(3);
+restraints[0].resize(6);
+restraints[1].resize(6);
+restraints[2].resize(6);
+restraints[0][0]=1;
+restraints[0][1]=1;
+restraints[0][2]=1;
+restraints[0][3]=1;
+restraints[0][4]=1;
+restraints[0][5]=1;
+restraints[1][0]=0;
+restraints[1][1]=0;
+restraints[1][2]=0;
+restraints[1][3]=0;
+restraints[1][4]=0;
+restraints[1][5]=0;
+restraints[2][0]=1;
+restraints[2][1]=1;
+restraints[2][2]=1;
+restraints[2][3]=1;
+restraints[2][4]=1;
+restraints[2][5]=1;
+
+List<List<scalar>>  mats;
+mats.resize(2);
+mats[0].append(30.0e6);
+mats[0].append(0.2 );
+mats[1].append(30.0e6);
+mats[1].append(0.2) ;
+
+List<List<scalar>>  sects;
+sects.resize(2);
+sects[0].resize(5);
+sects[1].resize(5);
+sects[0][0]=0.625;
+sects[0][1]=0.00325521;
+sects[0][2]=0.00325521;
+sects[0][3]=0.0015;
+sects[0][4]=0.;
+sects[1][0]=0.625;
+sects[1][1]=0.00325521;
+sects[1][2]=0.00325521;
+sects[1][3]=0.0015;
+sects[1][4]=0.;
+
+List<List<scalar>>  loads;
+loads.resize(3);
+loads[0].resize(6);
+loads[1].resize(6);
+loads[2].resize(6);
+loads[0][0]=0.;
+loads[0][1]=0.;
+loads[0][2]=0.;
+loads[0][3]=0.;
+loads[0][4]=0.;
+loads[0][5]=0.;
+loads[1][0]=0.;
+loads[1][1]=0.;
+loads[1][2]=-50;
+loads[1][3]=0.;
+loads[1][4]=0.;
+loads[1][5]=0.;
+loads[2][0]=0.;
+loads[2][1]=0.;
+loads[2][2]=0;
+loads[2][3]=0.;
+loads[2][4]=0.;
+loads[2][5]=0.;
+
+List<List<scalar>>  prescribed;
+prescribed.resize(3);
+prescribed[0].resize(6);
+prescribed[1].resize(6);
+prescribed[2].resize(6);
+prescribed[0]=0;
+prescribed[1]=0;
+prescribed[2]=0;
+
+*///////////////////////////////////////////////////////////////////////			
 //Create input data for FEA Analysis
 Info <<"Number of elements " <<nElements_ <<endl;
 List<List<scalar>> nodes;
@@ -621,9 +725,6 @@ restraints[nElements_]=elements_[0].restraints();//Using restraind defined at fi
 SubList.resize(6);
 SubList=0.;
 prescribed[nElements_]=SubList;//Apply previous deformation?
-
-
-
 
 	forAll(elements_, i)
 	{
@@ -676,11 +777,8 @@ prescribed[nElements_]=SubList;//Apply previous deformation?
 		Info <<"Material of element "<< i << " is "<<elements_[i].material() <<endl;
 		sects[i]=elements_[i].sects();//Section data A        Iz       Iy          J        alpha
 		Info <<"e Element Sections " <<elements_[i].sects() <<endl;
-		
-
 		}	
-		
-		
+//*////////////////////////////////////////////////////////////////////////		
 //Create FA and apply returned discplacement
 Info<< "Input for Frame Analysis: "<< endl;
 Info<< "nodes: "<<nodes<< endl;
@@ -696,61 +794,6 @@ Info<< "prescribed: "<<prescribed<< endl;
 FrameAnalysis FA(nodes,elems,restraints, mats,sects,loads,prescribed);
 Info<< "Returned from FEA Analysis "<<FA.nodedispList()<< endl;
 
-	////Nothing if no forces to avoid segfaults at startup
-	//if (mag(force())>SMALL)
-	//{
-	//// Move geometric positions for elements according to some beam theory or similar
-	////Assuming 0DoF for element 0!!!!
-		//forAll(elements_, i)
-		//{
-			////Ignoring variation of EI along length
-			////Deformation at position of element i due to all other elements forces
-			//vector delta(0,0,0);
-			////Spanwise distance
-			//scalar x = mag(elements_[i].position()-elements_[0].position());	
-			
-			//forAll(elements_,j)  
-			//{
-				//if ((i>0) && (j>0))
-				//{		
-				////Linear superpositions of Deformation contributions from all forces on all elements relatve to element 0 chord and normal direction
-				//vector ResForce=elements_[j].force() - elements_[j].structforce();			
-				////Contribution in chord direction	
-				//scalar Chorddirectionforce = mag(elements_[0].chordDirection()
-				//* (ResForce & elements_[0].chordDirection())
-				/// magSqr(elements_[0].chordDirection()));
-				////Contribution in normal to chord direction	
-				//scalar ChordNormalforce = mag(elements_[0].planformNormal()
-				//* (ResForce & elements_[0].planformNormal())
-				/// magSqr(elements_[0].planformNormal()));
-				
-				////Stiffness is not integrated correctly along blade, rather use FEA or adjust formula...
-				//scalar l = mag(elements_[j].position()-elements_[0].position());	
-				//scalar chordflexcontrib = Cantileverdeflection(x,l,Chorddirectionforce,elements_[j].stiffness()[0]);	
-				//scalar chordnormalflexcontrib = Cantileverdeflection(x,l,ChordNormalforce,elements_[j].stiffness()[1]);	
-				
-				////Transform back into global coordinates
-				////Shorten code  if forces are normalised?
-				//vector contrib=	elements_[0].planformNormal()*chordnormalflexcontrib/mag(elements_[0].planformNormal())+
-								//elements_[0].chordDirection()*chordflexcontrib/mag(elements_[0].chordDirection());
-		
-				//delta+=contrib;
-				
-				////Save total force applied to each element, better alternative store original position?
-				//elements_[i].setStructForce(elements_[i].structforce()-elements_[i].force());
-				//}
-
-			
-			//}
-			//if (debug)
-			//{
-				//Info<<"Delta for element "<<i <<" is "<<delta<<endl;
-				//Info<<"elements_[i].structforce()"<<elements_[i].structforce()<<endl;
-				//Info<<"elements_[i].force()"<<elements_[i].force()<<endl;
-				//}
-			//elements_[i].translate(delta);	
-		//}
-	//}
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //

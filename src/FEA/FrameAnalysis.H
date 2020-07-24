@@ -71,7 +71,7 @@ class FrameAnalysis{
 		//Dummy to see armadillo comppiles
 		arma::Mat<double> A;
 
-		arma::Mat<double> K_, Kff_, Kfr_, Krf_, Krr_;
+		arma::Mat<double> K_,Ke_, Kff_, Kfr_, Krf_, Krr_;
 		arma::Mat<double> Ff_, Fr_, deff_, defr_,nodedisp_;
 
 		double A_               ;
@@ -84,7 +84,7 @@ class FrameAnalysis{
         double Iy_              ;
         double Iz_              ;
         double J_               ;
-        arma::Mat<double> Ke_  ;
+
         double L_               ;
         double Poi_             ;
         double alpha_           ;
@@ -102,8 +102,8 @@ class FrameAnalysis{
        int nnode_           ;
        int nnodes_          ;
         arma::Mat<double> nodes_  ;      
-        arma::Mat<double> order1_;       
-        arma::Mat<double> order2_;       
+        arma::Mat<int> order1_;       
+        arma::Mat<int> order2_;       
         arma::Mat<double> prescribed_;   
         arma::Mat<int> restraints_;   
         arma::Mat<double> sects_;        
@@ -169,10 +169,10 @@ public:
 
         // Edit
         
-        //Perofrm entire Frame Analysis
+        //Perform entire Frame Analysis
 		void beam1();
         //Create Stiffness matrix for current element
-        arma::Mat<double> elemstiff();
+        void elemstiff();
         //Assemble system Matrix
         void assem();
         //Reorder to consider restraints
@@ -188,8 +188,8 @@ public:
         
         
         //Create Double Matrix from nested OpenFOAM List 
-        arma::Mat<double> List2Mat(const List<List<scalar>>& List);
-        arma::Mat<int> List2intMat(const List<List<int>>& List);
+        const arma::Mat<double> List2Mat(const List<List<scalar>>& List);
+        const arma::Mat<int> List2intMat(const List<List<int>>& List);
         
         
         //And back
