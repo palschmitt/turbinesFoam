@@ -88,6 +88,9 @@ protected:
 
         //- Total force vector from all elements
         vector force_;
+        
+        vector rootLocation_;
+        vector tipLocation_;
 
         //- Force field from all elements
         volVectorField forceField_;
@@ -141,7 +144,7 @@ protected:
         void createInitialElements();
 
         //- Create actuator line elements from updated positions
-        void reevaluateElements();
+        void reevaluateElements(List<List<scalar>> Deformations);
 
         //- Read dictionary
         bool read(const dictionary& dict);

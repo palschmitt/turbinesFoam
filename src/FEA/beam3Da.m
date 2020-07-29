@@ -60,8 +60,8 @@ predisp(nfree,prescribed,order2);
 
 
 % solve for deflections
-deff=Kff\(Ff-Kfr*defr);
-
+[deff, R]=linsolve(Kff,(Ff-Kfr*defr));
+R
 % Find reactions
 Fr=Krf*deff+Krr*defr;
 
@@ -252,7 +252,7 @@ end
 function [nodes,elems,restraints,mats,sects,loads,prescribed]=readindata()
    global nnodes nnode nelems ndof; 
    %[filename,pathname]=uigetfile('*.inp');
-   filename="contbeam3d2.inp";
+   filename="contbeam3d2b.inp";
    pathname="./";
    fid=fopen([pathname,filename],'r');
    textline=fgetl(fid);

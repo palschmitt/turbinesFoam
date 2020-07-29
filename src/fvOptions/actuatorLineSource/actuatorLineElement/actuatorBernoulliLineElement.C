@@ -821,7 +821,20 @@ void Foam::fv::actuatorBernoulliLineElement::calculateForce
     }
 }
 
+void Foam::fv::actuatorBernoulliLineElement::setPosition(vector NewPosition)
+{
+	position_=NewPosition;
+	}
+void Foam::fv::actuatorBernoulliLineElement::setSpanLength(scalar SP)
+			{
+				spanLength_=SP;
+				}
+void Foam::fv::actuatorBernoulliLineElement::setSpanDirection(vector SD)
+			{
+				spanDirection_=SD;
+				}
 
+  
 void Foam::fv::actuatorBernoulliLineElement::rotate
 (
     vector rotationPoint,
@@ -1069,11 +1082,17 @@ Foam::vector Foam::fv::actuatorBernoulliLineElement::moment(vector point)
     // Calculate radius vector
     vector radius = position_ - point;
     vector moment = radius ^ forceVector_;
-    vector pitchingMoment = 0.5*chordLength_*chordLength_*spanLength_
+    return moment + pitchingMoment();
+}
+
+const Foam::vector Foam::fv::actuatorBernoulliLineElement::pitchingMoment()
+{
+	return 0.5*chordLength_*chordLength_*spanLength_
                           * momentCoefficient_*magSqr(relativeVelocity_)
                           * spanDirection_;
-    return moment + pitchingMoment;
-}
+	
+	}
+
 
 
 void Foam::fv::actuatorBernoulliLineElement::addSup

@@ -210,8 +210,8 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
     }
 
     // Store blade root and tip locations for distance calculations
-    vector rootLocation = points[0];
-    vector tipLocation = points[nGeometryPoints - 1];
+    rootLocation_ = points[0];
+    tipLocation_ = points[nGeometryPoints - 1];
 
     // Compute average chord length
     chordLength_ /= nGeometryPoints;
@@ -233,8 +233,8 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
         Info<< "Span lengths: " << endl << spanLengths << endl;
         Info<< "Chord lengths:" << endl << chordLengths << endl;
         Info<< "Pitches:" << endl << pitches << endl;
-        Info<< "Root location: " << rootLocation << endl;
-        Info<< "Tip location: " << tipLocation << endl;
+        Info<< "Root location: " << rootLocation_ << endl;
+        Info<< "Tip location: " << tipLocation_ << endl;
     }
 
     forAll(elements_, i)
@@ -361,7 +361,7 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
         chordRefDirection = chordDirection;
         
         // Calculate nondimensional root distance
-        scalar rootDistance = mag(position - rootLocation)/totalLength_;
+        scalar rootDistance = mag(position - rootLocation_)/totalLength_;
 
         // Create a dictionary for this actuatorFlexibleLineElement
         dictionary dict;
@@ -432,6 +432,47 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
         elements_[i].setVelocity(initialVelocity);
     }
 }
+
+void Foam::fv::actuatorFlexibleLineSource::reevaluateElements(List<List<Foam::scalar>> Deformation)
+{
+	//Deformations = XYZRXRYRZ per node
+	forAll(elements_,i)
+	{
+		//Evaluate new position and span direction from new node positions
+		
+		//Update the following over all elements
+		//"position"C
+        //"chordDirection"C
+        //"spanLength"C
+        //"spanDirection"C
+        //"rootDistance"//Ignoring for now
+
+		//Reconstruct node posit, blade shouldn't elongate anyway
+		vector P1=elements_[i].position()-elements_[i].spanDirection()/mag(elements_[i].spanDirection())*elements_[i].spanLength()/2.;
+		//Save in element?
+		vector P2=elements_[i].position()+elements_[i].spanDirection()/mag(elements_[i].spanDirection())*elements_[i].spanLength()/2.;
+	 //
+		//Add deformations 
+		vector DefT(Deformation[i][0],Deformation[i][1],Deformation[i][2]);
+		P1=P1+DefT;
+		DefT=vector(Deformation[i+1][0],Deformation[i+1][1],Deformation[i+1][2]);
+		P2=P2+DefT;
+		vector spanLength =P2-P1;
+		elements_[i].setSpanLength(mag(spanLength));
+		elements_[i].setSpanDirection(spanLength/mag(spanLength));
+		elements_[i].setPosition(P1+0.5*spanLength);
+
+		//Chord direction affected by torque in beam
+		//Torque should only ever be around beam axis, so mag(rx,ry,rz) is deflection angle?
+		vector DefR1(Deformation[i][0],Deformation[i][1],Deformation[i][2]);
+		vector DefR2(Deformation[i+1][0],Deformation[i+1][1],Deformation[i+1][2]);
+		scalar deltaChordDirection=mag(0.5*(DefR1+DefR2));//Deg or Rad?
+		elements_[i].pitch(deltaChordDirection);
+		}
+	
+	
+	}
+
 
 
 
@@ -579,11 +620,11 @@ scalar Foam::fv::actuatorFlexibleLineSource::Cantileverdeflection(scalar x, scal
 void Foam::fv::actuatorFlexibleLineSource::evaluateDeformation()
 {
 	
-/*////////////////Debugging Data///////////////////////////////////////
+/*///////////////Debugging Data///////////////////////////////////////
 //Create input data for FEA Analysis
 Info <<"Number of elements " <<"2" <<endl;
 List<List<scalar>> nodes;
-nodes.resize(3);
+nodes.resize(4);
 nodes[0].append(0.);
 nodes[0].append(0.);
 nodes[0].append(0.);
@@ -593,20 +634,26 @@ nodes[1].append(0.);
 nodes[2].append(10.);
 nodes[2].append(0.);
 nodes[2].append(0.);
+nodes[3].append(15.);
+nodes[3].append(0.);
+nodes[3].append(0.);
 
 
 List<List<int>>	elems;
-elems.resize(2);
+elems.resize(3);
 elems[0].append(0);
 elems[0].append(1);
 elems[1].append(1);
 elems[1].append(2);
+elems[2].append(2);
+elems[2].append(3);
 
 List<List<int>> restraints;
-restraints.resize(3);
+restraints.resize(4);
 restraints[0].resize(6);
 restraints[1].resize(6);
 restraints[2].resize(6);
+restraints[3].resize(6);
 restraints[0][0]=1;
 restraints[0][1]=1;
 restraints[0][2]=1;
@@ -619,67 +666,91 @@ restraints[1][2]=0;
 restraints[1][3]=0;
 restraints[1][4]=0;
 restraints[1][5]=0;
-restraints[2][0]=1;
-restraints[2][1]=1;
-restraints[2][2]=1;
-restraints[2][3]=1;
-restraints[2][4]=1;
-restraints[2][5]=1;
+restraints[2][0]=0;
+restraints[2][1]=0;
+restraints[2][2]=0;
+restraints[2][3]=0;
+restraints[2][4]=0;
+restraints[2][5]=0;
+restraints[3][0]=0;
+restraints[3][1]=0;
+restraints[3][2]=0;
+restraints[3][3]=0;
+restraints[3][4]=0;
+restraints[3][5]=0;
 
 List<List<scalar>>  mats;
-mats.resize(2);
+mats.resize(3);
 mats[0].append(30.0e6);
 mats[0].append(0.2 );
 mats[1].append(30.0e6);
 mats[1].append(0.2) ;
+mats[2].append(30.0e6);
+mats[2].append(0.2) ;
 
 List<List<scalar>>  sects;
-sects.resize(2);
+sects.resize(3);
 sects[0].resize(5);
 sects[1].resize(5);
+sects[2].resize(5);
+
 sects[0][0]=0.625;
-sects[0][1]=0.00325521;
-sects[0][2]=0.00325521;
+sects[0][1]=0.0033;
+sects[0][2]=0.0033;
 sects[0][3]=0.0015;
 sects[0][4]=0.;
 sects[1][0]=0.625;
-sects[1][1]=0.00325521;
-sects[1][2]=0.00325521;
+sects[1][1]=0.0033;
+sects[1][2]=0.0033;
 sects[1][3]=0.0015;
 sects[1][4]=0.;
+sects[2][0]=0.625;
+sects[2][1]=0.0033;
+sects[2][2]=0.0033;
+sects[2][3]=0.0015;
+sects[2][4]=0.;
 
 List<List<scalar>>  loads;
-loads.resize(3);
+loads.resize(4);
 loads[0].resize(6);
 loads[1].resize(6);
 loads[2].resize(6);
+loads[3].resize(6);
 loads[0][0]=0.;
-loads[0][1]=0.;
-loads[0][2]=0.;
+loads[0][1]=0;
+loads[0][2]=0;
 loads[0][3]=0.;
 loads[0][4]=0.;
 loads[0][5]=0.;
-loads[1][0]=0.;
+loads[1][0]=0;
 loads[1][1]=0.;
-loads[1][2]=-50;
+loads[1][2]=-500;
 loads[1][3]=0.;
 loads[1][4]=0.;
 loads[1][5]=0.;
-loads[2][0]=0.;
-loads[2][1]=0.;
-loads[2][2]=0;
+loads[2][0]=-500.;
+loads[2][1]=-500.;
+loads[2][2]=-500;
 loads[2][3]=0.;
 loads[2][4]=0.;
 loads[2][5]=0.;
+loads[3][0]=0;
+loads[3][1]=0.;
+loads[3][2]=0;
+loads[3][3]=0.;
+loads[3][4]=0.;
+loads[3][5]=0.;
 
 List<List<scalar>>  prescribed;
-prescribed.resize(3);
+prescribed.resize(4);
 prescribed[0].resize(6);
 prescribed[1].resize(6);
 prescribed[2].resize(6);
+prescribed[3].resize(6);
 prescribed[0]=0;
 prescribed[1]=0;
 prescribed[2]=0;
+prescribed[3]=0;
 
 *///////////////////////////////////////////////////////////////////////			
 //Create input data for FEA Analysis
@@ -701,10 +772,12 @@ prescribed.resize(nElements_+1);
 List<scalar> SubList;//Ugly workaround
 List<int> SubiList;//Ugly workaround
 
+scalar rho=1000; //Density missing for incompressible cases? rhoref_
 //AL Line element positions are nodes of FEA model
 //Get position +- spanwidth*spandirection as nodes positions
 
-vector Position=elements_[0].position()-elements_[0].spanDirection()/mag(elements_[0].spanDirection())*elements_[0].spanLength()/2.;
+//vector Position=elements_[0].position()-elements_[0].spanDirection()/mag(elements_[0].spanDirection())*elements_[0].spanLength()/2.;
+vector Position=elements_[0].position();
 SubList.clear();
 SubList.resize(3);
 SubList[0]=Position.x();
@@ -716,12 +789,19 @@ nodes[0]=(SubList);
 SubList.clear();
 SubList=0.;
 SubList.resize(6);
-SubList[0]=elements_[0].force().x()/2;
-SubList[1]=elements_[0].force().y()/2;
-SubList[2]=elements_[0].force().z()/2;
+SubList[0]=elements_[0].force().x()*rho/2;
+SubList[1]=elements_[0].force().y()*rho/2;
+SubList[2]=elements_[0].force().z()*rho/2;
+SubList[3]=elements_[0].pitchingMoment().x()*rho/2;
+SubList[4]=elements_[0].pitchingMoment().y()*rho/2;
+SubList[5]=elements_[0].pitchingMoment().z()*rho/2;
+
 loads[0]=SubList;//Fluid force, moments still missing
 
-restraints[nElements_]=elements_[0].restraints();//Using restraind defined at first node, impossible to define restrained at last node!
+SubiList.resize(6);
+SubiList=0.;
+restraints[nElements_]=SubiList;//Using restraind defined at first node, impossible to define restrained at last node!
+
 SubList.resize(6);
 SubList=0.;
 prescribed[nElements_]=SubList;//Apply previous deformation?
@@ -745,19 +825,26 @@ prescribed[nElements_]=SubList;//Apply previous deformation?
 
 		//List of forces in XYZ
 		//Distributing fluid force at center of element 50/50 to both nodes
+
 		SubList.clear();
-		SubList=0.;
 		SubList.resize(6);
-		SubList[0]=elements_[i].force().x()/2+loads[i][0];
-		SubList[1]=elements_[i].force().y()/2+loads[i][1];
-		SubList[2]=elements_[i].force().z()/2+loads[i][2];
+		SubList=0.;
+		SubList[0]=elements_[i].force().x()*rho/2+loads[i][0];
+		SubList[1]=elements_[i].force().y()*rho/2+loads[i][1];
+		SubList[2]=elements_[i].force().z()*rho/2+loads[i][2];
+		SubList[3]=elements_[i].pitchingMoment().x()*rho/2;
+		SubList[4]=elements_[i].pitchingMoment().y()*rho/2;
+		SubList[5]=elements_[i].pitchingMoment().z()*rho/2;
 		loads[i]=SubList;//Fluid force
 		SubList.clear();
-		SubList=0.;
 		SubList.resize(6);
-		SubList[0]=elements_[i].force().x()/2;
-		SubList[1]=elements_[i].force().y()/2;
-		SubList[2]=elements_[i].force().z()/2;
+		SubList=0.;
+		SubList[0]=elements_[i].force().x()*rho/2;
+		SubList[1]=elements_[i].force().y()*rho/2;
+		SubList[2]=elements_[i].force().z()*rho/2;
+		SubList[3]=elements_[i].pitchingMoment().x()*rho/2;
+		SubList[4]=elements_[i].pitchingMoment().y()*rho/2;
+		SubList[5]=elements_[i].pitchingMoment().z()*rho/2;		
 		loads[i+1]=SubList;//Fluid force
 		
 		SubList.clear();
@@ -766,12 +853,15 @@ prescribed[nElements_]=SubList;//Apply previous deformation?
 		prescribed[i]=SubList;//Apply previous deformation?
 
 		//Data below per element
-		
+		//Element definitions
 		SubiList.clear();
 		SubiList=0.;
 		SubiList.resize(2);
 		SubiList[0]=i;
 		SubiList[1]=i+1;
+		
+		
+		
 		elems[i]=SubiList;//FEA Element connections are simply Node(N) to Node(N+1);
 		mats[i]=elements_[i].material();// E  Poisson
 		Info <<"Material of element "<< i << " is "<<elements_[i].material() <<endl;
@@ -793,7 +883,9 @@ Info<< "prescribed: "<<prescribed<< endl;
 
 FrameAnalysis FA(nodes,elems,restraints, mats,sects,loads,prescribed);
 Info<< "Returned from FEA Analysis "<<FA.nodedispList()<< endl;
+List<List<scalar>> Deformation=FA.nodedispList();
 
+reevaluateElements(Deformation);
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //

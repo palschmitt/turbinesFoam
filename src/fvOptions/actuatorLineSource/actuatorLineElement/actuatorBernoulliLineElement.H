@@ -119,8 +119,7 @@ protected:
         //- Structural force on element -- vector that is perpendicular to
         //  spanDirection,
         vector structforceVector_;
-        //- Structural stiffness of element -- vector that is perpendicular to
-        //  spanDirection,
+        //- Structural stiffness of element 
         List<scalar> material_;// E  Poisson
         List<scalar> sects_;//Section data A        Iz       Iy          J        alpha
         List<int> restraints_;//restrained X Y Z Rx Ry Rz 0 or 1
@@ -306,7 +305,7 @@ public:
 
             //- Return the element location
             const vector& position();
-
+                        
             //- Return the element velocity
             const vector& velocity();
 
@@ -340,6 +339,9 @@ public:
 
             //- Return moment coefficient
             const scalar& momentCoefficient();
+            
+            
+            const vector pitchingMoment();
 
             //- Return nondimensional distance from actuator line root
             const scalar& rootDistance();
@@ -368,6 +370,11 @@ public:
 			
 			const vector&  spanDirection();
         // Manipulation
+			void setSpanLength(scalar);
+			void setSpanDirection(vector);
+			void deltaChordDirection(scalar);
+			
+			void setPosition(vector NewPosition);
 
             //- Translate the element's location
             void translate(vector translationVector);

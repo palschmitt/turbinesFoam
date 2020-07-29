@@ -110,19 +110,20 @@ nnodes_=nodes.size();
 nnode_=2; //Not variable at the moment, beam element has 6DoF
 ndof_=6;
 nodes_=List2Mat(nodes);
-//std::cout << "nodes_: "<< nodes_ <<endl;
+std::cout << "nodes_: "<< nodes_ <<endl;
 elems_=List2intMat(elems);
-//std::cout << "elems_: "<< elems_ <<endl;
+std::cout << "elems_: "<< elems_ <<endl;
 restraints_=List2intMat(restraints);
-//std::cout << "restraints_: "<< restraints_ <<endl;
+std::cout << "restraints_: "<< restraints_ <<endl;
 sects_=List2Mat(sects);
-//std::cout << "sects_: "<< sects_ <<endl;
+std::cout << "sects_: "<< sects_ <<endl;
 loads_=List2Mat(loads);
-//std::cout << "loads_: "<< loads_ <<endl;
+std::cout << "loads_: "<< loads_ <<endl;
 mats_=List2Mat(mats);
-//std::cout << "mats_: "<< mats_ <<endl;
-
+std::cout << "mats_: "<< mats_ <<endl;
 prescribed_=List2Mat(prescribed);
+std::cout << "prescribed_: "<< prescribed_ <<endl;
+
 beam1();//Evaluate deformation
 }
 
@@ -171,8 +172,8 @@ void Foam::FrameAnalysis::beam1()
     Poi_=mats_(ielem_,1);
     G_=E_/(2*(1+Poi_));
     A_=sects_(ielem_,0);
-    Iz_=sects_(ielem_,1);
-    Iy_=sects_(ielem_,2);
+    Iy_=sects_(ielem_,1);
+    Iz_=sects_(ielem_,2);
     J_=sects_(ielem_,3);
     alpha_=sects_(ielem_,4);
     //Check for nicer way of doing this
@@ -232,7 +233,12 @@ defr_.zeros(totdof_-nfree_,1);
 reorder();
 loading();
 predisp();
-//std::cout << "K_: "<< K_ <<endl;
+
+std::cout << "Kff_: "<<endl<< Kff_ <<endl;
+std::cout << "Kfr_: "<<endl<< Kfr_ <<endl;
+std::cout << "Ff: "<<endl<< Ff_ <<endl;
+std::cout << "defr: "<<endl<< defr_ <<endl;
+std::cout << "deff: "<<endl<< deff_ <<endl;
 
 // solve for deflections
 deff_=solve(Kff_,(Ff_-Kfr_*defr_));
@@ -294,7 +300,7 @@ scalar L3=pow(L_,3);
        r21=(-dot(dot(Cx_,Cy_),cos(alpha_))-dot(Cz_,sin(alpha_)))/Cxz_;
        r22=dot(Cxz_,cos(alpha_));
        r23=(-dot(dot(Cx_,Cz_),cos(alpha_))-dot(Cx_,sin(alpha_)))/Cxz_;
-       r31=dot(dot(dot(Cx_,Cy_),sin(alpha_))-dot(Cz_,cos(alpha_))/Cxz_, dot(Cxz_,sin(alpha_)));
+       r31=(dot(dot(Cx_,Cy_),sin(alpha_))-dot(Cz_,cos(alpha_)))/Cxz_;
        r32=dot(Cxz_,sin(alpha_));
        r33=(Cx_*Cy_*sin(alpha_)+Cx_*cos(alpha_))/Cxz_;
    }
@@ -325,6 +331,7 @@ scalar L3=pow(L_,3);
        {0,0,0,0,0,0,0,0,0,r31,r32,r33}};
    
     Ke_=RotMat.t()*Ke_*RotMat;
+    std::cout <<" Ke_ "<<Ke_ <<endl;
 	}
 
 
@@ -490,8 +497,10 @@ void Foam::FrameAnalysis::nodaldisp()
         nodedisp_(order1_(idof))=deff_(idof);  
 	}
     //Reformat to get xyzrxryrz per node in list
-    nodedisp_.reshape(6,3);
+    nodedisp_.reshape(6,nnodes_);
     inplace_trans(nodedisp_);
+    std::cout << "nodedisp_ in FEA: "<< nodedisp_ <<endl;
+
 	}
 // * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * * //
 
