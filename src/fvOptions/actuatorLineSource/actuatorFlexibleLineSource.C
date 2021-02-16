@@ -377,8 +377,8 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
         dict.add("freeStreamVelocity", freeStreamVelocity_);
         dict.add("chordMount", chordMount);
         dict.add("rootDistance", rootDistance);
-        dict.add("material", material);
-        dict.add("section", section);
+        dict.add("FEAmaterial", material);
+        dict.add("FEAsection", section);
         dict.add("FEArestraints", restraint);
         dict.add("addedMass", coeffs_.lookupOrDefault("addedMass", false));
         dict.add
@@ -772,7 +772,9 @@ FEAprescribed.resize(nElements_+1);
 List<scalar> SubList;//Ugly workaround
 List<int> SubiList;//Ugly workaround
 
-scalar rho=1000; //Density missing for incompressible cases? rhoref_
+//Better set FEA material as material/rho? Or get rhoInf from ObjReg?
+scalar rho=1000; //Density missing for incompressible cases? rhoref?
+//
 //AL Line element positions are nodes of FEA model
 //Get position +- spanwidth*spandirection as nodes positions
 
@@ -785,13 +787,13 @@ SubList[1]=Position.y();
 SubList[2]=Position.z();
 FEAnodes[0]=(SubList);
 
-//Distributing fluid force at center of element 50/50 to both FEAnodes
+//Distributing delta force at center of element 50/50 to both FEAnodes
 SubList.clear();
 SubList=0.;
 SubList.resize(6);
-SubList[0]=elements_[0].force().x()*rho/2;
-SubList[1]=elements_[0].force().y()*rho/2;
-SubList[2]=elements_[0].force().z()*rho/2;
+SubList[0]=(elements_[0].force().x()-elements_[0].structforce().x())*rho/2;
+SubList[1]=(elements_[0].force().y()-elements_[0].structforce().y())*rho/2;
+SubList[2]=(elements_[0].force().z()-elements_[0].structforce().z())*rho/2;
 SubList[3]=elements_[0].pitchingMoment().x()*rho/2;
 SubList[4]=elements_[0].pitchingMoment().y()*rho/2;
 SubList[5]=elements_[0].pitchingMoment().z()*rho/2;
@@ -829,9 +831,9 @@ FEAprescribed[nElements_]=SubList;//Apply previous deformation?
 		SubList.clear();
 		SubList.resize(6);
 		SubList=0.;
-		SubList[0]=elements_[i].force().x()*rho/2+FEAloads[i][0];
-		SubList[1]=elements_[i].force().y()*rho/2+FEAloads[i][1];
-		SubList[2]=elements_[i].force().z()*rho/2+FEAloads[i][2];
+		SubList[0]=(elements_[i].force().x()-elements_[i].structforce().x())*rho/2+FEAloads[i][0];
+		SubList[1]=(elements_[i].force().y()-elements_[i].structforce().y())*rho/2+FEAloads[i][1];
+		SubList[2]=(elements_[i].force().z()-elements_[i].structforce().z())*rho/2+FEAloads[i][2];
 		SubList[3]=elements_[i].pitchingMoment().x()*rho/2;
 		SubList[4]=elements_[i].pitchingMoment().y()*rho/2;
 		SubList[5]=elements_[i].pitchingMoment().z()*rho/2;
@@ -839,9 +841,9 @@ FEAprescribed[nElements_]=SubList;//Apply previous deformation?
 		SubList.clear();
 		SubList.resize(6);
 		SubList=0.;
-		SubList[0]=elements_[i].force().x()*rho/2;
-		SubList[1]=elements_[i].force().y()*rho/2;
-		SubList[2]=elements_[i].force().z()*rho/2;
+		SubList[0]=(elements_[i].force().x()-elements_[i].structforce().x())*rho/2;
+		SubList[1]=(elements_[i].force().y()-elements_[i].structforce().y())*rho/2;
+		SubList[2]=(elements_[i].force().z()-elements_[i].structforce().z())*rho/2;
 		SubList[3]=elements_[i].pitchingMoment().x()*rho/2;
 		SubList[4]=elements_[i].pitchingMoment().y()*rho/2;
 		SubList[5]=elements_[i].pitchingMoment().z()*rho/2;		
@@ -851,6 +853,9 @@ FEAprescribed[nElements_]=SubList;//Apply previous deformation?
 		SubList.resize(6);
 		SubList=0.;
 		FEAprescribed[i]=SubList;//Apply previous deformation?
+
+        //Save old force to only apply difference causing additional deformation
+        elements_[i].setStructForce(elements_[i].force());
 
 		//Data below per element
 		//Element definitions
@@ -864,25 +869,25 @@ FEAprescribed[nElements_]=SubList;//Apply previous deformation?
 		
 		FEAelems[i]=SubiList;//FEA Element connections are simply Node(N) to Node(N+1);
 		FEAmats[i]=elements_[i].FEAmaterial();// E  Poisson
-		Info <<"Material of element "<< i << " is "<<elements_[i].FEAmaterial() <<endl;
+		//Info <<"Material of element "<< i << " is "<<elements_[i].FEAmaterial() <<endl;
 		FEAsects[i]=elements_[i].FEAsects();//Section data A        Iz       Iy          J        alpha
-		Info <<"e Element Sections " <<elements_[i].FEAsects() <<endl;
+		//Info <<"e Element Sections " <<elements_[i].FEAsects() <<endl;
 		}	
 //*////////////////////////////////////////////////////////////////////////		
 //Create FA and apply returned discplacement
-Info<< "Input for Frame Analysis: "<< endl;
-Info<< "FEAnodes: "<<FEAnodes<< endl;
-Info<< "FEAelems: "<<FEAelems<< endl;
-Info<< "FEArestraints: "<<FEArestraints<< endl;
-Info<< "FEAmats: "<<FEAmats<< endl;
-Info<< "FEAsects: "<<FEAsects<< endl;
-Info<< "FEAloads: "<<FEAloads<< endl;
-Info<< "FEAprescribed: "<<FEAprescribed<< endl;
+//Info<< "Input for Frame Analysis: "<< endl;
+//Info<< "FEAnodes: "<<FEAnodes<< endl;
+//Info<< "FEAelems: "<<FEAelems<< endl;
+//Info<< "FEArestraints: "<<FEArestraints<< endl;
+//Info<< "FEAmats: "<<FEAmats<< endl;
+//Info<< "FEAsects: "<<FEAsects<< endl;
+//Info<< "FEAloads: "<<FEAloads<< endl;
+//Info<< "FEAprescribed: "<<FEAprescribed<< endl;
 
 
 
 FrameAnalysis FA(FEAnodes,FEAelems,FEArestraints, FEAmats,FEAsects,FEAloads,FEAprescribed);
-Info<< "Returned from FEA Analysis "<<FA.nodedispList()<< endl;
+Info<< "Deformation from FEA Analysis "<<FA.nodedispList()<< endl;
 List<List<scalar>> Deformation=FA.nodedispList();
 
 reevaluateElements(Deformation);

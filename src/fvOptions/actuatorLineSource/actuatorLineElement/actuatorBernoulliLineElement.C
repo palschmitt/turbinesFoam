@@ -57,9 +57,9 @@ void Foam::fv::actuatorBernoulliLineElement::read()
     dict_.lookup("freeStreamVelocity") >> freeStreamVelocity_;
     freeStreamDirection_ = freeStreamVelocity_/mag(freeStreamVelocity_);
     dict_.lookup("rootDistance") >> rootDistance_;
-    dict_.lookup("material") >> FEAmaterial_;
-    dict_.lookup("section") >> FEAsects_;
-    dict_.lookup("restraints") >> FEArestraints_;
+    dict_.lookup("FEAmaterial") >> FEAmaterial_;
+    dict_.lookup("FEAsection") >> FEAsects_;
+    dict_.lookup("FEArestraints") >> FEArestraints_;
     dict_.lookup("velocitySampleRadius") >> velocitySampleRadius_;
     dict_.lookup("nVelocitySamples") >> nVelocitySamples_;
 

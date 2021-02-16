@@ -110,19 +110,19 @@ nnodes_=nodes.size();
 nnode_=2; //Not variable at the moment, beam element has 6DoF
 ndof_=6;
 nodes_=List2Mat(nodes);
-std::cout << "nodes_: "<< nodes_ <<endl;
+//std::cout << "nodes_: "<< nodes_ <<endl;
 elems_=List2intMat(elems);
-std::cout << "elems_: "<< elems_ <<endl;
+//std::cout << "elems_: "<< elems_ <<endl;
 restraints_=List2intMat(restraints);
-std::cout << "restraints_: "<< restraints_ <<endl;
+//std::cout << "restraints_: "<< restraints_ <<endl;
 sects_=List2Mat(sects);
-std::cout << "sects_: "<< sects_ <<endl;
+//std::cout << "sects_: "<< sects_ <<endl;
 loads_=List2Mat(loads);
-std::cout << "loads_: "<< loads_ <<endl;
+//std::cout << "loads_: "<< loads_ <<endl;
 mats_=List2Mat(mats);
-std::cout << "mats_: "<< mats_ <<endl;
+//std::cout << "mats_: "<< mats_ <<endl;
 prescribed_=List2Mat(prescribed);
-std::cout << "prescribed_: "<< prescribed_ <<endl;
+//std::cout << "prescribed_: "<< prescribed_ <<endl;
 
 beam1();//Evaluate deformation
 }
@@ -234,11 +234,11 @@ reorder();
 loading();
 predisp();
 
-std::cout << "Kff_: "<<endl<< Kff_ <<endl;
-std::cout << "Kfr_: "<<endl<< Kfr_ <<endl;
-std::cout << "Ff: "<<endl<< Ff_ <<endl;
-std::cout << "defr: "<<endl<< defr_ <<endl;
-std::cout << "deff: "<<endl<< deff_ <<endl;
+//std::cout << "Kff_: "<<endl<< Kff_ <<endl;
+//std::cout << "Kfr_: "<<endl<< Kfr_ <<endl;
+//std::cout << "Ff: "<<endl<< Ff_ <<endl;
+//std::cout << "defr: "<<endl<< defr_ <<endl;
+//std::cout << "deff: "<<endl<< deff_ <<endl;
 
 // solve for deflections
 deff_=solve(Kff_,(Ff_-Kfr_*defr_));
@@ -331,7 +331,7 @@ scalar L3=pow(L_,3);
        {0,0,0,0,0,0,0,0,0,r31,r32,r33}};
    
     Ke_=RotMat.t()*Ke_*RotMat;
-    std::cout <<" Ke_ "<<Ke_ <<endl;
+    //std::cout <<" Ke_ "<<Ke_ <<endl;
 	}
 
 
@@ -499,7 +499,7 @@ void Foam::FrameAnalysis::nodaldisp()
     //Reformat to get xyzrxryrz per node in list
     nodedisp_.reshape(6,nnodes_);
     inplace_trans(nodedisp_);
-    std::cout << "nodedisp_ in FEA: "<< nodedisp_ <<endl;
+    //std::cout << "nodedisp_ in FEA: "<< nodedisp_ <<endl;
 
 	}
 // * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * * //
