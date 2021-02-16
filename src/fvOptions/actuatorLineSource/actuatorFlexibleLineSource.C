@@ -171,7 +171,7 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
 	//FEA Data
     List<List<scalar>> materials(nGeometryPoints);
     List<List<scalar>> sections(nGeometryPoints);
-    List<List<scalar>> restraints(nGeometryPoints);
+    List<List<scalar>> FEArestraints(nGeometryPoints);
 
 
     forAll(points, i)
@@ -206,7 +206,7 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
         pitches[i] = elementGeometry_[i][5][0];
         materials[i] = elementGeometry_[i][6];
         sections[i] = elementGeometry_[i][7];
-		restraints[i] = elementGeometry_[i][8]; 
+		FEArestraints[i] = elementGeometry_[i][8]; 
     }
 
     // Store blade root and tip locations for distance calculations
@@ -306,7 +306,7 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
 			{
 			for (int j=0.; j<6;j++)
 			{
-				restraint[j] = restraints[geometrySegmentIndex][j];
+				restraint[j] = FEArestraints[geometrySegmentIndex][j];
 			}						
 			}
 	
@@ -379,7 +379,7 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
         dict.add("rootDistance", rootDistance);
         dict.add("material", material);
         dict.add("section", section);
-        dict.add("restraints", restraint);
+        dict.add("FEArestraints", restraint);
         dict.add("addedMass", coeffs_.lookupOrDefault("addedMass", false));
         dict.add
         (
@@ -648,127 +648,127 @@ elems[1].append(2);
 elems[2].append(2);
 elems[2].append(3);
 
-List<List<int>> restraints;
-restraints.resize(4);
-restraints[0].resize(6);
-restraints[1].resize(6);
-restraints[2].resize(6);
-restraints[3].resize(6);
-restraints[0][0]=1;
-restraints[0][1]=1;
-restraints[0][2]=1;
-restraints[0][3]=1;
-restraints[0][4]=1;
-restraints[0][5]=1;
-restraints[1][0]=0;
-restraints[1][1]=0;
-restraints[1][2]=0;
-restraints[1][3]=0;
-restraints[1][4]=0;
-restraints[1][5]=0;
-restraints[2][0]=0;
-restraints[2][1]=0;
-restraints[2][2]=0;
-restraints[2][3]=0;
-restraints[2][4]=0;
-restraints[2][5]=0;
-restraints[3][0]=0;
-restraints[3][1]=0;
-restraints[3][2]=0;
-restraints[3][3]=0;
-restraints[3][4]=0;
-restraints[3][5]=0;
+List<List<int>> FEArestraints;
+FEArestraints.resize(4);
+FEArestraints[0].resize(6);
+FEArestraints[1].resize(6);
+FEArestraints[2].resize(6);
+FEArestraints[3].resize(6);
+FEArestraints[0][0]=1;
+FEArestraints[0][1]=1;
+FEArestraints[0][2]=1;
+FEArestraints[0][3]=1;
+FEArestraints[0][4]=1;
+FEArestraints[0][5]=1;
+FEArestraints[1][0]=0;
+FEArestraints[1][1]=0;
+FEArestraints[1][2]=0;
+FEArestraints[1][3]=0;
+FEArestraints[1][4]=0;
+FEArestraints[1][5]=0;
+FEArestraints[2][0]=0;
+FEArestraints[2][1]=0;
+FEArestraints[2][2]=0;
+FEArestraints[2][3]=0;
+FEArestraints[2][4]=0;
+FEArestraints[2][5]=0;
+FEArestraints[3][0]=0;
+FEArestraints[3][1]=0;
+FEArestraints[3][2]=0;
+FEArestraints[3][3]=0;
+FEArestraints[3][4]=0;
+FEArestraints[3][5]=0;
 
-List<List<scalar>>  mats;
-mats.resize(3);
-mats[0].append(30.0e6);
-mats[0].append(0.2 );
-mats[1].append(30.0e6);
-mats[1].append(0.2) ;
-mats[2].append(30.0e6);
-mats[2].append(0.2) ;
+List<List<scalar>>  FEAmats;
+FEAmats.resize(3);
+FEAmats[0].append(30.0e6);
+FEAmats[0].append(0.2 );
+FEAmats[1].append(30.0e6);
+FEAmats[1].append(0.2) ;
+FEAmats[2].append(30.0e6);
+FEAmats[2].append(0.2) ;
 
-List<List<scalar>>  sects;
-sects.resize(3);
-sects[0].resize(5);
-sects[1].resize(5);
-sects[2].resize(5);
+List<List<scalar>>  FEAsects;
+FEAsects.resize(3);
+FEAsects[0].resize(5);
+FEAsects[1].resize(5);
+FEAsects[2].resize(5);
 
-sects[0][0]=0.625;
-sects[0][1]=0.0033;
-sects[0][2]=0.0033;
-sects[0][3]=0.0015;
-sects[0][4]=0.;
-sects[1][0]=0.625;
-sects[1][1]=0.0033;
-sects[1][2]=0.0033;
-sects[1][3]=0.0015;
-sects[1][4]=0.;
-sects[2][0]=0.625;
-sects[2][1]=0.0033;
-sects[2][2]=0.0033;
-sects[2][3]=0.0015;
-sects[2][4]=0.;
+FEAsects[0][0]=0.625;
+FEAsects[0][1]=0.0033;
+FEAsects[0][2]=0.0033;
+FEAsects[0][3]=0.0015;
+FEAsects[0][4]=0.;
+FEAsects[1][0]=0.625;
+FEAsects[1][1]=0.0033;
+FEAsects[1][2]=0.0033;
+FEAsects[1][3]=0.0015;
+FEAsects[1][4]=0.;
+FEAsects[2][0]=0.625;
+FEAsects[2][1]=0.0033;
+FEAsects[2][2]=0.0033;
+FEAsects[2][3]=0.0015;
+FEAsects[2][4]=0.;
 
-List<List<scalar>>  loads;
-loads.resize(4);
-loads[0].resize(6);
-loads[1].resize(6);
-loads[2].resize(6);
-loads[3].resize(6);
-loads[0][0]=0.;
-loads[0][1]=0;
-loads[0][2]=0;
-loads[0][3]=0.;
-loads[0][4]=0.;
-loads[0][5]=0.;
-loads[1][0]=0;
-loads[1][1]=0.;
-loads[1][2]=-500;
-loads[1][3]=0.;
-loads[1][4]=0.;
-loads[1][5]=0.;
-loads[2][0]=-500.;
-loads[2][1]=-500.;
-loads[2][2]=-500;
-loads[2][3]=0.;
-loads[2][4]=0.;
-loads[2][5]=0.;
-loads[3][0]=0;
-loads[3][1]=0.;
-loads[3][2]=0;
-loads[3][3]=0.;
-loads[3][4]=0.;
-loads[3][5]=0.;
+List<List<scalar>>  FEAloads;
+FEAloads.resize(4);
+FEAloads[0].resize(6);
+FEAloads[1].resize(6);
+FEAloads[2].resize(6);
+FEAloads[3].resize(6);
+FEAloads[0][0]=0.;
+FEAloads[0][1]=0;
+FEAloads[0][2]=0;
+FEAloads[0][3]=0.;
+FEAloads[0][4]=0.;
+FEAloads[0][5]=0.;
+FEAloads[1][0]=0;
+FEAloads[1][1]=0.;
+FEAloads[1][2]=-500;
+FEAloads[1][3]=0.;
+FEAloads[1][4]=0.;
+FEAloads[1][5]=0.;
+FEAloads[2][0]=-500.;
+FEAloads[2][1]=-500.;
+FEAloads[2][2]=-500;
+FEAloads[2][3]=0.;
+FEAloads[2][4]=0.;
+FEAloads[2][5]=0.;
+FEAloads[3][0]=0;
+FEAloads[3][1]=0.;
+FEAloads[3][2]=0;
+FEAloads[3][3]=0.;
+FEAloads[3][4]=0.;
+FEAloads[3][5]=0.;
 
-List<List<scalar>>  prescribed;
-prescribed.resize(4);
-prescribed[0].resize(6);
-prescribed[1].resize(6);
-prescribed[2].resize(6);
-prescribed[3].resize(6);
-prescribed[0]=0;
-prescribed[1]=0;
-prescribed[2]=0;
-prescribed[3]=0;
+List<List<scalar>>  FEAprescribed;
+FEAprescribed.resize(4);
+FEAprescribed[0].resize(6);
+FEAprescribed[1].resize(6);
+FEAprescribed[2].resize(6);
+FEAprescribed[3].resize(6);
+FEAprescribed[0]=0;
+FEAprescribed[1]=0;
+FEAprescribed[2]=0;
+FEAprescribed[3]=0;
 
 *///////////////////////////////////////////////////////////////////////			
 //Create input data for FEA Analysis
 Info <<"Number of elements " <<nElements_ <<endl;
-List<List<scalar>> nodes;
-nodes.resize(nElements_+1);
-List<List<int>>	elems;
-elems.resize(nElements_);
-List<List<int>> restraints;
-restraints.resize(nElements_+1);
-List<List<scalar>>  mats;
-mats.resize(nElements_);
-List<List<scalar>>  sects;
-sects.resize(nElements_);
-List<List<scalar>>  loads;
-loads.resize(nElements_+1);
-List<List<scalar>>  prescribed;
-prescribed.resize(nElements_+1);
+List<List<scalar>> FEAnodes;
+FEAnodes.resize(nElements_+1);
+List<List<int>>	FEAelems;
+FEAelems.resize(nElements_);
+List<List<int>> FEArestraints;
+FEArestraints.resize(nElements_+1);
+List<List<scalar>>  FEAmats;
+FEAmats.resize(nElements_);
+List<List<scalar>>  FEAsects;
+FEAsects.resize(nElements_);
+List<List<scalar>>  FEAloads;
+FEAloads.resize(nElements_+1);
+List<List<scalar>>  FEAprescribed;
+FEAprescribed.resize(nElements_+1);
 List<scalar> SubList;//Ugly workaround
 List<int> SubiList;//Ugly workaround
 
@@ -783,9 +783,9 @@ SubList.resize(3);
 SubList[0]=Position.x();
 SubList[1]=Position.y();
 SubList[2]=Position.z();
-nodes[0]=(SubList);
+FEAnodes[0]=(SubList);
 
-//Distributing fluid force at center of element 50/50 to both nodes
+//Distributing fluid force at center of element 50/50 to both FEAnodes
 SubList.clear();
 SubList=0.;
 SubList.resize(6);
@@ -796,15 +796,15 @@ SubList[3]=elements_[0].pitchingMoment().x()*rho/2;
 SubList[4]=elements_[0].pitchingMoment().y()*rho/2;
 SubList[5]=elements_[0].pitchingMoment().z()*rho/2;
 
-loads[0]=SubList;//Fluid force, moments still missing
+FEAloads[0]=SubList;//Fluid force, moments still missing
 
 SubiList.resize(6);
 SubiList=0.;
-restraints[nElements_]=SubiList;//Using restraind defined at first node, impossible to define restrained at last node!
+FEArestraints[nElements_]=SubiList;//Using restraind defined at first node, impossible to define restrained at last node!
 
 SubList.resize(6);
 SubList=0.;
-prescribed[nElements_]=SubList;//Apply previous deformation?
+FEAprescribed[nElements_]=SubList;//Apply previous deformation?
 
 	forAll(elements_, i)
 	{
@@ -817,25 +817,25 @@ prescribed[nElements_]=SubList;//Apply previous deformation?
 		SubList[0]=Position.x();
 		SubList[1]=Position.y();
 		SubList[2]=Position.z();
-		nodes[i+1]=SubList;
+		FEAnodes[i+1]=SubList;
 		
 		
-		restraints[i]=elements_[i].restraints();//Using restraind defined at first node, impossible to define restrained at last node!
+		FEArestraints[i]=elements_[i].FEArestraints();//Using restraind defined at first node, impossible to define restrained at last node!
 		
 
 		//List of forces in XYZ
-		//Distributing fluid force at center of element 50/50 to both nodes
+		//Distributing fluid force at center of element 50/50 to both FEAnodes
 
 		SubList.clear();
 		SubList.resize(6);
 		SubList=0.;
-		SubList[0]=elements_[i].force().x()*rho/2+loads[i][0];
-		SubList[1]=elements_[i].force().y()*rho/2+loads[i][1];
-		SubList[2]=elements_[i].force().z()*rho/2+loads[i][2];
+		SubList[0]=elements_[i].force().x()*rho/2+FEAloads[i][0];
+		SubList[1]=elements_[i].force().y()*rho/2+FEAloads[i][1];
+		SubList[2]=elements_[i].force().z()*rho/2+FEAloads[i][2];
 		SubList[3]=elements_[i].pitchingMoment().x()*rho/2;
 		SubList[4]=elements_[i].pitchingMoment().y()*rho/2;
 		SubList[5]=elements_[i].pitchingMoment().z()*rho/2;
-		loads[i]=SubList;//Fluid force
+		FEAloads[i]=SubList;//Fluid force
 		SubList.clear();
 		SubList.resize(6);
 		SubList=0.;
@@ -845,12 +845,12 @@ prescribed[nElements_]=SubList;//Apply previous deformation?
 		SubList[3]=elements_[i].pitchingMoment().x()*rho/2;
 		SubList[4]=elements_[i].pitchingMoment().y()*rho/2;
 		SubList[5]=elements_[i].pitchingMoment().z()*rho/2;		
-		loads[i+1]=SubList;//Fluid force
+		FEAloads[i+1]=SubList;//Fluid force
 		
 		SubList.clear();
 		SubList.resize(6);
 		SubList=0.;
-		prescribed[i]=SubList;//Apply previous deformation?
+		FEAprescribed[i]=SubList;//Apply previous deformation?
 
 		//Data below per element
 		//Element definitions
@@ -862,26 +862,26 @@ prescribed[nElements_]=SubList;//Apply previous deformation?
 		
 		
 		
-		elems[i]=SubiList;//FEA Element connections are simply Node(N) to Node(N+1);
-		mats[i]=elements_[i].material();// E  Poisson
-		Info <<"Material of element "<< i << " is "<<elements_[i].material() <<endl;
-		sects[i]=elements_[i].sects();//Section data A        Iz       Iy          J        alpha
-		Info <<"e Element Sections " <<elements_[i].sects() <<endl;
+		FEAelems[i]=SubiList;//FEA Element connections are simply Node(N) to Node(N+1);
+		FEAmats[i]=elements_[i].FEAmaterial();// E  Poisson
+		Info <<"Material of element "<< i << " is "<<elements_[i].FEAmaterial() <<endl;
+		FEAsects[i]=elements_[i].FEAsects();//Section data A        Iz       Iy          J        alpha
+		Info <<"e Element Sections " <<elements_[i].FEAsects() <<endl;
 		}	
 //*////////////////////////////////////////////////////////////////////////		
 //Create FA and apply returned discplacement
 Info<< "Input for Frame Analysis: "<< endl;
-Info<< "nodes: "<<nodes<< endl;
-Info<< "elems: "<<elems<< endl;
-Info<< "restraints: "<<restraints<< endl;
-Info<< "mats: "<<mats<< endl;
-Info<< "sects: "<<sects<< endl;
-Info<< "loads: "<<loads<< endl;
-Info<< "prescribed: "<<prescribed<< endl;
+Info<< "FEAnodes: "<<FEAnodes<< endl;
+Info<< "FEAelems: "<<FEAelems<< endl;
+Info<< "FEArestraints: "<<FEArestraints<< endl;
+Info<< "FEAmats: "<<FEAmats<< endl;
+Info<< "FEAsects: "<<FEAsects<< endl;
+Info<< "FEAloads: "<<FEAloads<< endl;
+Info<< "FEAprescribed: "<<FEAprescribed<< endl;
 
 
 
-FrameAnalysis FA(nodes,elems,restraints, mats,sects,loads,prescribed);
+FrameAnalysis FA(FEAnodes,FEAelems,FEArestraints, FEAmats,FEAsects,FEAloads,FEAprescribed);
 Info<< "Returned from FEA Analysis "<<FA.nodedispList()<< endl;
 List<List<scalar>> Deformation=FA.nodedispList();
 

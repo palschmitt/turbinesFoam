@@ -57,9 +57,9 @@ void Foam::fv::actuatorBernoulliLineElement::read()
     dict_.lookup("freeStreamVelocity") >> freeStreamVelocity_;
     freeStreamDirection_ = freeStreamVelocity_/mag(freeStreamVelocity_);
     dict_.lookup("rootDistance") >> rootDistance_;
-    dict_.lookup("material") >> material_;
-    dict_.lookup("section") >> sects_;
-    dict_.lookup("restraints") >> restraints_;
+    dict_.lookup("material") >> FEAmaterial_;
+    dict_.lookup("section") >> FEAsects_;
+    dict_.lookup("restraints") >> FEArestraints_;
     dict_.lookup("velocitySampleRadius") >> velocitySampleRadius_;
     dict_.lookup("nVelocitySamples") >> nVelocitySamples_;
 
@@ -522,6 +522,7 @@ Foam::fv::actuatorBernoulliLineElement::actuatorBernoulliLineElement
     planformNormal_(vector::zero),
     velocity_(vector::zero),
     forceVector_(vector::zero),
+    structforceVector_(vector::zero),
     relativeVelocity_(vector::zero),
     relativeVelocityGeom_(vector::zero),
     angleOfAttack_(0.0),
@@ -955,32 +956,32 @@ void Foam::fv::actuatorBernoulliLineElement::setStructForce(vector Structforce)
 }
 
 
-void Foam::fv::actuatorBernoulliLineElement::setSects(List<scalar> s)
+void Foam::fv::actuatorBernoulliLineElement::setFEASects(List<scalar> s)
 {
     if (debug)
     {
         Info<< "Changing Section Data of " << name_ << " from "
-            << sects_ << " to " << s << endl << endl;
+            << FEAsects_ << " to " << s << endl << endl;
     }
-    sects_ = s;
+    FEAsects_ = s;
 }
-void Foam::fv::actuatorBernoulliLineElement::setMaterial(List<scalar> s)
+void Foam::fv::actuatorBernoulliLineElement::setFEAMaterial(List<scalar> s)
 {
     if (debug)
     {
         Info<< "Changing Section Data of " << name_ << " from "
-            << sects_ << " to " << s << endl << endl;
+            << FEAmaterial_ << " to " << s << endl << endl;
     }
-    material_ = s;
+    FEAmaterial_ = s;
 }
-void Foam::fv::actuatorBernoulliLineElement::setRestraint(List<int> s)
+void Foam::fv::actuatorBernoulliLineElement::setFEARestraint(List<int> s)
 {
     if (debug)
     {
         Info<< "Changing Restrained of " << name_ << " from "
-            << restraints_ << " to " << s << endl << endl;
+            << FEArestraints_ << " to " << s << endl << endl;
     }
-    restraints_ = s;
+    FEArestraints_ = s;
 }
 
 void Foam::fv::actuatorBernoulliLineElement::setSpeed(scalar speed)
@@ -1062,17 +1063,17 @@ const Foam::vector& Foam::fv::actuatorBernoulliLineElement::structforce()
 {
     return structforceVector_;
 }
-const Foam::List<int>& Foam::fv::actuatorBernoulliLineElement::restraints()
+const Foam::List<int>& Foam::fv::actuatorBernoulliLineElement::FEArestraints()
 {
-    return restraints_;
+    return FEArestraints_;
 }
-const Foam::List<scalar>& Foam::fv::actuatorBernoulliLineElement::sects()
+const Foam::List<scalar>& Foam::fv::actuatorBernoulliLineElement::FEAsects()
 {
-    return sects_;
+    return FEAsects_;
 }
-const Foam::List<scalar>& Foam::fv::actuatorBernoulliLineElement::material()
+const Foam::List<scalar>& Foam::fv::actuatorBernoulliLineElement::FEAmaterial()
 {
-    return material_;
+    return FEAmaterial_;
 }
 
 
