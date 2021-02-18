@@ -800,13 +800,14 @@ SubList[5]=elements_[0].pitchingMoment().z()*rho/2;
 
 FEAloads[0]=SubList;//Fluid force, moments still missing
 
-SubiList.resize(6);
-SubiList=0.;
-FEArestraints[nElements_]=SubiList;//Using restraind defined at first node, impossible to define restrained at last node!
+
+//Using restraind defined at first and/or last node, impossible to define restrained in between!
+FEArestraints[0]=elements_[0].FEArestraints();
+FEArestraints[nElements_]=elements_[nElements_-1].FEArestraints();
 
 SubList.resize(6);
 SubList=0.;
-FEAprescribed[nElements_]=SubList;//Apply previous deformation?
+FEAprescribed[nElements_]=SubList;
 
 	forAll(elements_, i)
 	{
@@ -822,7 +823,7 @@ FEAprescribed[nElements_]=SubList;//Apply previous deformation?
 		FEAnodes[i+1]=SubList;
 		
 		
-		FEArestraints[i]=elements_[i].FEArestraints();//Using restraind defined at first node, impossible to define restrained at last node!
+		
 		
 
 		//List of forces in XYZ
@@ -864,10 +865,8 @@ FEAprescribed[nElements_]=SubList;//Apply previous deformation?
 		SubiList.resize(2);
 		SubiList[0]=i;
 		SubiList[1]=i+1;
-		
-		
-		
 		FEAelems[i]=SubiList;//FEA Element connections are simply Node(N) to Node(N+1);
+        
 		FEAmats[i]=elements_[i].FEAmaterial();// E  Poisson
 		//Info <<"Material of element "<< i << " is "<<elements_[i].FEAmaterial() <<endl;
 		FEAsects[i]=elements_[i].FEAsects();//Section data A        Iz       Iy          J        alpha

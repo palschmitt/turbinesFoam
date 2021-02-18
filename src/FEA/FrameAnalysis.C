@@ -161,7 +161,7 @@ const Foam::List<Foam::List<Foam::scalar>> Foam::FrameAnalysis::nodedispList()
 	
 void Foam::FrameAnalysis::beam1()
 {
-	Ke_.zeros(nnode_*ndof_,nnode_*ndof_); 
+    Ke_.zeros(nnode_*ndof_,nnode_*ndof_); 
     K_.zeros(nnodes_*ndof_,nnodes_*ndof_);
 
 // Evaluate element stiffness matrix
@@ -186,17 +186,17 @@ void Foam::FrameAnalysis::beam1()
     arma::vec L = {dx_, dy_, dz_};
     L_=arma::norm(L);
     
-    if (dx_<SMALL)
-		Cx_=0.;
+    if (fabs(dx_)<SMALL)
+    Cx_=0.;
 		else
     Cx_=dx_/L_;
     
-     if (dy_<SMALL)
+     if (fabs(dy_)<SMALL)
     Cy_=0.;
     		else
     Cy_=dy_/L_;
     
-     if (dz_<SMALL)
+     if (fabs(dz_)<SMALL)
     Cz_=0.;
     		else
     Cz_=dz_/L_;
