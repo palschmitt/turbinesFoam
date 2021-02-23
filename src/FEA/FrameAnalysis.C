@@ -205,7 +205,7 @@ void Foam::FrameAnalysis::beam1()
     
     Cxz_=arma::norm(L2);
     vert_=false;
-    if(dx_==0 && dz_==0)
+    if((fabs(dx_)<SMALL) && (fabs(dz_)<SMALL))
     {
        vert_=true;
     }

@@ -652,7 +652,10 @@ void Foam::profileData::updateRe(scalar Re)
 {
     if (tableType_ == "singleRe" and correctRe_ and Re != Re_)
     {
-        Re_ = Re;
+        //Ugly Arbitrary limit
+        Re = max(Re,10);
+        
+
 
         // Correct drag coefficients
         scalar fReRef = Foam::pow((Foam::log(ReRef_) - 0.407), -2.64);
@@ -702,6 +705,11 @@ void Foam::profileData::updateRe(scalar Re)
 
         // Recalculate static stall angle, etc.
         analyze();
+        
+      
+        
+        
+        
     }
     else if (tableType_ == "multiRe" and Re != Re_)
     {
@@ -713,6 +721,8 @@ void Foam::profileData::updateRe(scalar Re)
     {
         Re_ = Re;
     }
+
+
 }
 
 

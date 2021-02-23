@@ -686,11 +686,23 @@ Foam::scalar Foam::fv::actuatorBernoulliLineElement::normalRefForce()
 Foam::scalar Foam::fv::actuatorBernoulliLineElement::inflowRefAngle()
 {
     // Calculate inflow velocity angle in degrees (AFTAL Phi)
-    scalar inflowVelAngleRad = acos
+    scalar inflowVelAngleRad = VSMALL;
+    if ((mag(chordRefDirection_)> VSMALL) and (mag(relativeVelocity_)>VSMALL) )
+    {
+    inflowVelAngleRad = acos
     (
         (-relativeVelocity_ & chordRefDirection_)
         / (mag(relativeVelocity_) * mag(chordRefDirection_))
     );
+    }
+    else
+    {
+        inflowVelAngleRad=0;
+        }
+    
+    
+    
+    
     return radToDeg(inflowVelAngleRad);
 }
 
@@ -735,90 +747,99 @@ void Foam::fv::actuatorBernoulliLineElement::calculateForce
     // Calculate relative velocity and Reynolds number
     relativeVelocity_ = inflowVelocity_ - velocity_;
     Re_ = mag(relativeVelocity_)*chordLength_/nu_;
-
-    // Calculate angle of attack (radians)
-    scalar angleOfAttackRad = asin((planformNormal_ & relativeVelocity_)
-                            / (mag(planformNormal_)
-                            *  mag(relativeVelocity_)));
-    scalar angleOfAttackUncorrected = radToDeg(angleOfAttackRad);
-    relativeVelocityGeom_ = freeStreamVelocity_ - velocity_;
-    angleOfAttackGeom_ = asin((planformNormal_ & relativeVelocityGeom_)
-                       / (mag(planformNormal_)*mag(relativeVelocityGeom_)));
-    angleOfAttackGeom_ *= 180.0/pi;
-
-    // Apply flow curvature correction to angle of attack
-    if (flowCurvatureActive_)
-    {
+    
+    //Segfaults for zero velocity
+    if (mag(Re_)>VSMALL)
+        {
+        // Calculate angle of attack (radians)
+        scalar angleOfAttackRad = asin((planformNormal_ & relativeVelocity_)
+        / (mag(planformNormal_)
+        *  mag(relativeVelocity_)));
+        scalar angleOfAttackUncorrected = radToDeg(angleOfAttackRad);
+        relativeVelocityGeom_ = freeStreamVelocity_ - velocity_;
+        angleOfAttackGeom_ = asin((planformNormal_ & relativeVelocityGeom_)
+        / (mag(planformNormal_)*mag(relativeVelocityGeom_)));
+        angleOfAttackGeom_ *= 180.0/pi;
+        
+        // Apply flow curvature correction to angle of attack
+        if (flowCurvatureActive_)
+        {
         correctFlowCurvature(angleOfAttackRad);
-    }
-
-    // Calculate angle of attack in degrees
-    angleOfAttack_ = radToDeg(angleOfAttackRad);
-
-    // Update Reynolds number of profile data
-    profileData_.updateRe(Re_);
-
-    // Lookup lift and drag coefficients
-    lookupCoefficients();
-
-    if (debug)
-    {
+        }
+        
+        // Calculate angle of attack in degrees
+        angleOfAttack_ = radToDeg(angleOfAttackRad);
+        
+        // Update Reynolds number of profile data
+        profileData_.updateRe(Re_);
+        
+        // Lookup lift and drag coefficients
+        lookupCoefficients();
+        
+        if (debug)
+        {
         Info<< "    inflowVelocity: " << inflowVelocity_ << endl;
         Info<< "    relativeVelocity: " << relativeVelocity_ << endl;
         Info<< "    Reynolds number: " << Re_ << endl;
         Info<< "    Geometric angle of attack (degrees): "
-            << angleOfAttackGeom_ << endl;
+        << angleOfAttackGeom_ << endl;
         Info<< "    Angle of attack (uncorrected, degrees): "
-            << angleOfAttackUncorrected << endl;
+        << angleOfAttackUncorrected << endl;
         Info<< "    Angle of attack (corrected, degrees): "
-            << angleOfAttack_ << endl;
-    }
-
-    // Correct coefficients with dynamic stall model
-    if (dynamicStallActive_)
-    {
+        << angleOfAttack_ << endl;
+        }
+        
+        // Correct coefficients with dynamic stall model
+        if (dynamicStallActive_)
+        {
         dynamicStall_->correct
         (
-            mag(relativeVelocity_),
-            angleOfAttack_,
-            liftCoefficient_,
-            dragCoefficient_,
-            momentCoefficient_
+        mag(relativeVelocity_),
+        angleOfAttack_,
+        liftCoefficient_,
+        dragCoefficient_,
+        momentCoefficient_
         );
-    }
-
-    // Correct for added mass effects
-    if (addedMassActive_)
-    {
+        }
+        
+        // Correct for added mass effects
+        if (addedMassActive_)
+        {
         addedMass_.correct
         (
-            liftCoefficient_,
-            dragCoefficient_,
-            momentCoefficient_,
-            degToRad(angleOfAttack_),
-            mag(chordDirection_ & relativeVelocity_),
-            mag(planformNormal_ & relativeVelocity_)
+        liftCoefficient_,
+        dragCoefficient_,
+        momentCoefficient_,
+        degToRad(angleOfAttack_),
+        mag(chordDirection_ & relativeVelocity_),
+        mag(planformNormal_ & relativeVelocity_)
         );
-    }
-
-    // Apply end effect correction factor to lift coefficient
-    liftCoefficient_ *= endEffectFactor_;
-
-    // Calculate force per unit density
-    scalar area = chordLength_ * spanLength_;
-    scalar magSqrU = magSqr(relativeVelocity_);
-    scalar lift = 0.5*area*liftCoefficient_*magSqrU;
-    scalar drag = 0.5*area*dragCoefficient_*magSqrU;
-    vector liftDirection = relativeVelocity_ ^ spanDirection_;
-    liftDirection /= mag(liftDirection);
-    vector dragDirection = relativeVelocity_/mag(relativeVelocity_);
-    forceVector_ = lift*liftDirection + drag*dragDirection;
-
-    if (debug)
-    {
+        }
+        
+        // Apply end effect correction factor to lift coefficient
+        liftCoefficient_ *= endEffectFactor_;
+        
+        // Calculate force per unit density
+        scalar area = chordLength_ * spanLength_;
+        scalar magSqrU = magSqr(relativeVelocity_);
+        scalar lift = 0.5*area*liftCoefficient_*magSqrU;
+        scalar drag = 0.5*area*dragCoefficient_*magSqrU;
+        vector liftDirection = relativeVelocity_ ^ spanDirection_;
+        liftDirection /= mag(liftDirection);
+        vector dragDirection = relativeVelocity_/mag(relativeVelocity_);
+        forceVector_ = lift*liftDirection + drag*dragDirection;
+        
+        if (debug)
+        {
         Info<< "    liftDirection: " << liftDirection << endl;
         Info<< "    dragDirection: " << dragDirection << endl;
         Info<< "    force (per unit density): " << forceVector_ << endl;
+        }
+        }
+    else
+    {
+        relativeVelocity_=vector(VSMALL, VSMALL, VSMALL);
+        Re_=VSMALL;
     }
 }
 
