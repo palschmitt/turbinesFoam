@@ -26,10 +26,10 @@ endTime         4; // Was 5000
 
 deltaT          1;
 
-//writeControl    adjustableRunTime;
-writeControl    timeStep;
+writeControl    adjustableRunTime;
+//writeControl    timeStep;
 
-writeInterval   10;
+writeInterval   1;
 
 purgeWrite      0;
 
