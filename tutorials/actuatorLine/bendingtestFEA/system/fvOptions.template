@@ -33,9 +33,9 @@ leftblade
         endEffects          off;
 
         elementGeometry // Will be interpolated linearly per nElements
-        ( // point spanDir chordLength chordRefDir chordMount pitch mats 2x1 sects 5x1 restraints 6x1 
+        ( // point spanDir chordLength chordRefDir chordMount pitch mats 2x1 sects A        Iz       Iy          J        alpha 5x1 restraints 6x1 
 	  ((0.0 0.0 0.0		) (0 0 1) (0.10) (1 0 0) (0.25) ({alpha_deg}) (11E9  0.2) (0.00314159265359 7.85398163397448E-08 7.85398163397449E-06 0.019459989147546  0) (1 1 1  1 1 1))
-          ((0.0 0.0 -{semispan}	) (0 0 1) (0.10) (1 0 0) (0.25) ({alpha_deg}) (11E9  0.2) (0.00314159265359 7.85398163397448E-08 7.85398163397449E-06 0.019459989147546 0) (0 0 0 0 0 0))
+          ((0.0 0.0 {semispan}	) (0 0 1) (0.10) (1 0 0) (0.25) ({alpha_deg}) (11E9  0.2) (0.00314159265359 7.85398163397448E-08 7.85398163397449E-06 0.019459989147546 0) (0 0 0 0 0 0))
         );
 
         elementProfiles (profile0); // Will be distributed evenly

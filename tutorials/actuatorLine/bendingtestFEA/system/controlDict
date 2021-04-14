@@ -22,7 +22,7 @@ startTime       0;
 
 stopAt          endTime;
 
-endTime         4; // Was 5000
+endTime         10; // Was 5000
 
 deltaT          1;
 
@@ -53,6 +53,14 @@ libs
 (
     "libturbinesFoam.so"
 );
+functions
+{
 
-
+    residuals
+    {
+        type            residuals;
+        libs            ( "libutilityFunctionObjects.so" );
+        fields          ( U p k omega );
+    }
+}
 // ************************************************************************* //

@@ -73,15 +73,6 @@ PIMPLE
     pRefCell        0;
     pRefValue       0;
 
-    residualControl
-    {
-        p               1e-6;
-        U               1e-6;
-        // Add other variables here
-    }
-
-
-
 }
 
 relaxationFactors
