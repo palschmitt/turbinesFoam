@@ -756,19 +756,19 @@ FEAprescribed[3]=0;
 //Create input data for FEA Analysis
 Info <<"Number of elements " <<nElements_ <<endl;
 List<List<scalar>> FEAnodes;
-FEAnodes.resize(nElements_+1);
+FEAnodes.resize(2*nElements_+1);
 List<List<int>>	FEAelems;
-FEAelems.resize(nElements_);
+FEAelems.resize(2*nElements_);
 List<List<int>> FEArestraints;
-FEArestraints.resize(nElements_+1);
+FEArestraints.resize(2*nElements_+1);
 List<List<scalar>>  FEAmats;
-FEAmats.resize(nElements_);
+FEAmats.resize(2*nElements_);
 List<List<scalar>>  FEAsects;
-FEAsects.resize(nElements_);
+FEAsects.resize(2*nElements_);
 List<List<scalar>>  FEAloads;
-FEAloads.resize(nElements_+1);
+FEAloads.resize(2*nElements_+1);
 List<List<scalar>>  FEAprescribed;
-FEAprescribed.resize(nElements_+1);
+FEAprescribed.resize(2*nElements_+1);
 List<scalar> SubList;//Ugly workaround
 List<int> SubiList;//Ugly workaround
 
@@ -778,8 +778,8 @@ scalar rho=1000; //Density missing for incompressible cases? rhoref?
 //AL Line element positions are nodes of FEA model
 //Get position +- spanwidth*spandirection as nodes positions
 
-//vector Position=elements_[0].position()-elements_[0].spanDirection()/mag(elements_[0].spanDirection())*elements_[0].spanLength()/2.;
-vector Position=elements_[0].position();
+vector Position=elements_[0].position()-elements_[0].spanDirection()/mag(elements_[0].spanDirection())*elements_[0].spanLength()/2.;
+//vector Position=elements_[0].position();
 SubList.clear();
 SubList.resize(3);
 SubList[0]=Position.x();
@@ -787,41 +787,50 @@ SubList[1]=Position.y();
 SubList[2]=Position.z();
 FEAnodes[0]=(SubList);
 
-//Distributing delta force at center of element 50/50 to both FEAnodes
+//Distributing force to node at cetner element
 SubList.clear();
 SubList=0.;
 SubList.resize(6);
-SubList[0]=(elements_[0].force().x()-elements_[0].structforce().x())*rho/2;
-SubList[1]=(elements_[0].force().y()-elements_[0].structforce().y())*rho/2;
-SubList[2]=(elements_[0].force().z()-elements_[0].structforce().z())*rho/2;
-SubList[3]=elements_[0].pitchingMoment().x()*rho/2;
-SubList[4]=elements_[0].pitchingMoment().y()*rho/2;
-SubList[5]=elements_[0].pitchingMoment().z()*rho/2;
+SubList[0]=(elements_[0].force().x()-elements_[0].structforce().x())*rho;
+SubList[1]=(elements_[0].force().y()-elements_[0].structforce().y())*rho;
+SubList[2]=(elements_[0].force().z()-elements_[0].structforce().z())*rho;
+SubList[3]=elements_[0].pitchingMoment().x()*rho;
+SubList[4]=elements_[0].pitchingMoment().y()*rho;
+SubList[5]=elements_[0].pitchingMoment().z()*rho;
 
 FEAloads[0]=SubList;//Fluid force, moments still missing
 
 
 //Using restraind defined at first and/or last node, impossible to define restrained in between!
 FEArestraints[0]=elements_[0].FEArestraints();
-FEArestraints[nElements_]=elements_[nElements_-1].FEArestraints();
+FEArestraints[2*nElements_]=elements_[nElements_-1].FEArestraints();
 
 SubList.resize(6);
 SubList=0.;
-FEAprescribed[nElements_]=SubList;
+FEAprescribed[2*nElements_]=SubList;
 
 	forAll(elements_, i)
 	{
 		
-		//Data per node		
-		vector Position=elements_[i].position()+elements_[i].spanDirection()/mag(elements_[i].spanDirection())*elements_[i].spanLength()/2.;
+		//Data per node	
+        //Positions	
+		vector Position=elements_[i].position();
+        SubList.clear();
+		SubList.resize(3);
+		SubList=0.;
+		SubList[0]=Position.x();
+		SubList[1]=Position.y();
+		SubList[2]=Position.z();
+		FEAnodes[2*i+1]=SubList;
+		
+        Position=elements_[i].position()+elements_[i].spanDirection()/mag(elements_[i].spanDirection())*elements_[i].spanLength()/2.;
 		SubList.clear();
 		SubList.resize(3);
 		SubList=0.;
 		SubList[0]=Position.x();
 		SubList[1]=Position.y();
 		SubList[2]=Position.z();
-		FEAnodes[i+1]=SubList;
-		
+		FEAnodes[2*i+2]=SubList;
 		
 		
 		
@@ -832,28 +841,24 @@ FEAprescribed[nElements_]=SubList;
 		SubList.clear();
 		SubList.resize(6);
 		SubList=0.;
-		SubList[0]=(elements_[i].force().x()-elements_[i].structforce().x())*rho/2+FEAloads[i][0];
-		SubList[1]=(elements_[i].force().y()-elements_[i].structforce().y())*rho/2+FEAloads[i][1];
-		SubList[2]=(elements_[i].force().z()-elements_[i].structforce().z())*rho/2+FEAloads[i][2];
-		SubList[3]=elements_[i].pitchingMoment().x()*rho/2;
-		SubList[4]=elements_[i].pitchingMoment().y()*rho/2;
-		SubList[5]=elements_[i].pitchingMoment().z()*rho/2;
-		FEAloads[i]=SubList;//Fluid force
-		SubList.clear();
-		SubList.resize(6);
-		SubList=0.;
-		SubList[0]=(elements_[i].force().x()-elements_[i].structforce().x())*rho/2;
-		SubList[1]=(elements_[i].force().y()-elements_[i].structforce().y())*rho/2;
-		SubList[2]=(elements_[i].force().z()-elements_[i].structforce().z())*rho/2;
-		SubList[3]=elements_[i].pitchingMoment().x()*rho/2;
-		SubList[4]=elements_[i].pitchingMoment().y()*rho/2;
-		SubList[5]=elements_[i].pitchingMoment().z()*rho/2;		
-		FEAloads[i+1]=SubList;//Fluid force
+		SubList[0]=(elements_[i].force().x()-elements_[i].structforce().x())*rho;
+		SubList[1]=(elements_[i].force().y()-elements_[i].structforce().y())*rho;
+		SubList[2]=(elements_[i].force().z()-elements_[i].structforce().z())*rho;
+		SubList[3]=elements_[i].pitchingMoment().x()*rho;
+		SubList[4]=elements_[i].pitchingMoment().y()*rho;
+		SubList[5]=elements_[i].pitchingMoment().z()*rho;
+		FEAloads[2*i+1]=SubList;//Fluid force
+        
+        //Empty node
+        SubList=0.;
+		FEAloads[2*i+2]=SubList;//Fluid force
+
 		
 		SubList.clear();
 		SubList.resize(6);
 		SubList=0.;
-		FEAprescribed[i]=SubList;//Apply previous deformation?
+		FEAprescribed[2*i]=SubList;//Apply previous deformation?
+		FEAprescribed[2*i+1]=SubList;//Apply previous deformation?
 
         //Save old force to only apply difference causing additional deformation
         elements_[i].setStructForce(elements_[i].force());
@@ -863,13 +868,19 @@ FEAprescribed[nElements_]=SubList;
 		SubiList.clear();
 		SubiList=0.;
 		SubiList.resize(2);
-		SubiList[0]=i;
-		SubiList[1]=i+1;
-		FEAelems[i]=SubiList;//FEA Element connections are simply Node(N) to Node(N+1);
+		SubiList[0]=2*i;
+		SubiList[1]=2*i+1;
+		FEAelems[2*i]=SubiList;//FEA Element connections are simply Node(N) to Node(N+1);
         
-		FEAmats[i]=elements_[i].FEAmaterial();// E  Poisson
+		SubiList[0]=2*i+1;
+		SubiList[1]=2*i+2;
+		FEAelems[2*i+1]=SubiList;//FEA Element connections are simply Node(N) to Node(N+1);
+        
+		FEAmats[2*i]=elements_[i].FEAmaterial();// E  Poisson
+		FEAmats[2*i+1]=elements_[i].FEAmaterial();// E  Poisson
 		//Info <<"Material of element "<< i << " is "<<elements_[i].FEAmaterial() <<endl;
-		FEAsects[i]=elements_[i].FEAsects();//Section data A        Iz       Iy          J        alpha
+		FEAsects[2*i]=elements_[i].FEAsects();//Section data A        Iz       Iy          J        alpha
+		FEAsects[2*i+1]=elements_[i].FEAsects();//Section data A        Iz       Iy          J        alpha
 		//Info <<"e Element Sections " <<elements_[i].FEAsects() <<endl;
 		}	
 //*////////////////////////////////////////////////////////////////////////		
@@ -886,10 +897,38 @@ FEAprescribed[nElements_]=SubList;
 
 
 FrameAnalysis FA(FEAnodes,FEAelems,FEArestraints, FEAmats,FEAsects,FEAloads,FEAprescribed);
-Info<< "Deformation from FEA Analysis "<<FA.nodedispList()<< endl;
-List<List<scalar>> Deformation=FA.nodedispList();
+//Info<< "Deformation from FEA Analysis "<<FA.nodedispList()<< endl;
 
-reevaluateElements(Deformation);
+//Ugly data transfer, needs cleaning and proper access to FA data
+List<List<scalar>> FEADeformation=FA.nodedispList();
+
+List<List<scalar>> ALDeformation;
+ALDeformation.resize(nElements_+1);
+SubList=0.;
+SubList[0]=FEADeformation[0][0];
+SubList[1]=FEADeformation[0][1];
+SubList[2]=FEADeformation[0][2];
+SubList[3]=FEADeformation[0][3];
+SubList[4]=FEADeformation[0][4];
+SubList[5]=FEADeformation[0][5];
+
+ALDeformation[0]=SubList;//Fluid force 
+forAll(elements_,i)
+{
+  		SubList.clear();
+		SubList.resize(6);
+		SubList=0.;
+		SubList[0]=FEADeformation[2*i+2][0];
+		SubList[1]=FEADeformation[2*i+2][1];
+		SubList[2]=FEADeformation[2*i+2][2];
+		SubList[3]=FEADeformation[2*i+2][3];
+		SubList[4]=FEADeformation[2*i+2][4];
+		SubList[5]=FEADeformation[2*i+2][5];
+
+		ALDeformation[i+1]=SubList;//Fluid force  
+    }
+
+reevaluateElements(ALDeformation);
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
