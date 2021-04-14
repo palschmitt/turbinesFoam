@@ -1,0 +1,84 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  3.0.x                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      topoSetDict;
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+actions
+(
+    {
+        name 	right;
+        type	cellSet;
+        action	new;
+        source	cylinderToCell;
+        sourceInfo
+        {
+            type cylinder;
+            p1 (0 0 0.0);
+            p2 (0 0 2.0);
+            radius 0.14;
+        }
+    }
+
+    {
+        name 	right;
+        type	cellSet;
+        action	add;
+        source	cylinderToCell;
+        sourceInfo
+        {
+            type cylinder;
+            p1 (0 -1 0.0);
+            p2 (0 0 0.0);
+            radius 0.14;
+        }
+    }
+
+    {
+        name    right;
+        type    cellZoneSet;
+        action  new;
+        source  setToCellZone;
+        sourceInfo
+        {
+            set right;
+        }
+    }
+    {
+        name 	left;
+        type	cellSet;
+        action	new;
+        source	cylinderToCell;
+        sourceInfo
+        {
+            type cylinder;
+            p1 (0 0 -2.0);
+            p2 (0 0 .0);
+            radius 0.14;
+        }
+    }
+
+    {
+        name    left;
+        type    cellZoneSet;
+        action  new;
+        source  setToCellZone;
+        sourceInfo
+        {
+            set left;
+        }
+    }
+);
+
+// ************************************************************************* //
