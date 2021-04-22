@@ -136,9 +136,6 @@ void Foam::fv::axialFlowTurbineFlexibleALSource::createBlades()
             scalar chordLength = elementData[j][3];
             scalar chordMount = elementData[j][4];
             scalar pitch = elementData[j][5];
-			scalar EI1	=	elementData[j][6];
-			scalar EI2	=	elementData[j][7];
-			scalar EI3	=	elementData[j][8];
 
             // Find max radius for calculating frontal area
             if (radius > maxRadius)
@@ -147,14 +144,16 @@ void Foam::fv::axialFlowTurbineFlexibleALSource::createBlades()
             }
 
             // Set sizes for actuatorLineSource elementGeometry lists
-            elementGeometry[j].setSize(7);
-            elementGeometry[j][0].setSize(3);
-            elementGeometry[j][1].setSize(3);
-            elementGeometry[j][2].setSize(1);
-            elementGeometry[j][3].setSize(3);
-            elementGeometry[j][4].setSize(1);
-            elementGeometry[j][5].setSize(1);
-            elementGeometry[j][6].setSize(3);
+            elementGeometry[j].setSize(9);
+            elementGeometry[j][0].setSize(3);//point
+            elementGeometry[j][1].setSize(3);//spanDir
+            elementGeometry[j][2].setSize(1);//chordLength
+            elementGeometry[j][3].setSize(3);//chordRefDir
+            elementGeometry[j][4].setSize(1);//chordMount
+            elementGeometry[j][5].setSize(1);//pitch
+            elementGeometry[j][6].setSize(2);//E mu
+            elementGeometry[j][7].setSize(5);//A        Iz       Iy          J alpha
+            elementGeometry[j][8].setSize(6);//restraints
 
             // Create geometry point for AL source at origin
             vector point = origin_;
@@ -216,10 +215,29 @@ void Foam::fv::axialFlowTurbineFlexibleALSource::createBlades()
             // Set element pitch or twist
             elementGeometry[j][5][0] = pitch;
             
-            //Element stiffness
-            elementGeometry[j][6][0] = EI1;
-            elementGeometry[j][6][1] = EI2;
-            elementGeometry[j][6][2] = EI3;
+            //Element mats
+            //E
+            elementGeometry[j][6][0] = elementData[j][6];
+            elementGeometry[j][6][1] = elementData[j][7];
+            //elementGeometry[j][6][1] = mu;
+            //A        Iz       Iy          J alpha
+            //Needs rotation?
+            elementGeometry[j][7][0] = elementData[j][8];
+            elementGeometry[j][7][1] = elementData[j][9];
+            elementGeometry[j][7][2] = elementData[j][10];
+            elementGeometry[j][7][3] = elementData[j][11];
+            elementGeometry[j][7][4] = elementData[j][12];
+            //Restraints, fix hub
+            
+            if (j<1)
+            {
+                elementGeometry[j][8] = 1;
+                }
+            else
+            {
+            elementGeometry[j][8] = 0.;
+        }
+
         }
 
         // Add frontal area to list
