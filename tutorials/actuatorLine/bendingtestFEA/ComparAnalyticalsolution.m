@@ -52,6 +52,13 @@ deltaphi=Mt*1/(Ip*G)
 deltaphideg=rad2deg(deltaphi)
 torquedisp=asin(deltaphi)
 
+%Equivalent load
+qequi=0.0583452043651*rho/L
+Mtequi=qequi/2
+deltaphiequi=Mtequi*1/(Ip*G)
+deltaphidegequi=rad2deg(deltaphiequi)
+torquedispequi=asin(deltaphiequi)
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Normal force
 A=0.0001
