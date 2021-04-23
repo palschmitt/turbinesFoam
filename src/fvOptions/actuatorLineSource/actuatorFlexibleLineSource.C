@@ -789,8 +789,8 @@ FEAnodes[0]=(SubList);
 
 //Distributing force to node at cetner element
 SubList.clear();
-SubList=0.;
 SubList.resize(6);
+SubList=0.;
 //SubList[0]=(elements_[0].force().x()-elements_[0].structforce().x())*rho;
 //SubList[1]=(elements_[0].force().y()-elements_[0].structforce().y())*rho;
 //SubList[2]=(elements_[0].force().z()-elements_[0].structforce().z())*rho;
