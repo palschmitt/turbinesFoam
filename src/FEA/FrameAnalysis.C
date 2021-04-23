@@ -183,8 +183,8 @@ void Foam::FrameAnalysis::beam1()
     dx_=nodes_(elnodes_(1),0)-nodes_(elnodes_(0),0);
     dy_=nodes_(elnodes_(1),1)-nodes_(elnodes_(0),1);
     dz_=nodes_(elnodes_(1),2)-nodes_(elnodes_(0),2);   
-    arma::vec L = {dx_, dy_, dz_};
-    L_=arma::norm(L);
+    arma::vec Lv = {dx_, dy_, dz_};
+    L_=arma::norm(Lv);
     
     if (fabs(dx_)<SMALL)
     Cx_=0.;

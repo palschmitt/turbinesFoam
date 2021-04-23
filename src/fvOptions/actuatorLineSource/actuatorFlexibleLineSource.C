@@ -791,12 +791,12 @@ FEAnodes[0]=(SubList);
 SubList.clear();
 SubList=0.;
 SubList.resize(6);
-SubList[0]=(elements_[0].force().x()-elements_[0].structforce().x())*rho;
-SubList[1]=(elements_[0].force().y()-elements_[0].structforce().y())*rho;
-SubList[2]=(elements_[0].force().z()-elements_[0].structforce().z())*rho;
-SubList[3]=elements_[0].pitchingMoment().x()*rho;
-SubList[4]=elements_[0].pitchingMoment().y()*rho;
-SubList[5]=elements_[0].pitchingMoment().z()*rho;
+//SubList[0]=(elements_[0].force().x()-elements_[0].structforce().x())*rho;
+//SubList[1]=(elements_[0].force().y()-elements_[0].structforce().y())*rho;
+//SubList[2]=(elements_[0].force().z()-elements_[0].structforce().z())*rho;
+//SubList[3]=elements_[0].pitchingMoment().x()*rho;
+//SubList[4]=elements_[0].pitchingMoment().y()*rho;
+//SubList[5]=elements_[0].pitchingMoment().z()*rho;
 
 FEAloads[0]=SubList;//Fluid force, moments still missing
 
@@ -891,13 +891,13 @@ FEAprescribed[2*nElements_]=SubList;
 //Info<< "FEArestraints: "<<FEArestraints<< endl;
 //Info<< "FEAmats: "<<FEAmats<< endl;
 //Info<< "FEAsects: "<<FEAsects<< endl;
-//Info<< "FEAloads: "<<FEAloads<< endl;
+Info<< "FEAloads: "<<FEAloads<< endl;
 //Info<< "FEAprescribed: "<<FEAprescribed<< endl;
 
 
 
 FrameAnalysis FA(FEAnodes,FEAelems,FEArestraints, FEAmats,FEAsects,FEAloads,FEAprescribed);
-//Info<< "Deformation from FEA Analysis "<<FA.nodedispList()<< endl;
+Info<< "Deformation from FEA Analysis "<<FA.nodedispList()<< endl;
 
 //Ugly data transfer, needs cleaning and proper access to FA data
 List<List<scalar>> FEADeformation=FA.nodedispList();

@@ -7,7 +7,7 @@ global nnodes nnode nelems ndof;
 [nodes,elems,restraints,mats,sects,loads,prescribed]=readindata();
 
 % plot nodes and elements
-%plotmesh(nodes,elems);
+plotmesh(nodes,elems);
 
 Ke=zeros(nnode*ndof); 
 K=zeros(nnodes*ndof);
@@ -60,14 +60,14 @@ predisp(nfree,prescribed,order2);
 
 
 % solve for deflections
-[deff, R]=linsolve(Kff,(Ff-Kfr*defr));
-R
+deff=Kff\(Ff-Kfr*defr);
+
 % Find reactions
 Fr=Krf*deff+Krr*defr;
 
 % Plot deformed shape
 nodedisp=nodaldisp(nfree,order1);
-%plotdisp(nodes,elems,nodedisp);
+plotdisp(nodes,elems,nodedisp);
     
 
 end
@@ -251,9 +251,7 @@ end
 
 function [nodes,elems,restraints,mats,sects,loads,prescribed]=readindata()
    global nnodes nnode nelems ndof; 
-   %[filename,pathname]=uigetfile('*.inp');
-   filename="contbeam3d2b.inp";
-   pathname="./";
+   [filename,pathname]=uigetfile('*.inp');
    fid=fopen([pathname,filename],'r');
    textline=fgetl(fid);
    textline=fgetl(fid);
@@ -390,7 +388,7 @@ function plotdisp(nodes,elems,nodedisp)
     global nnodes nelems ndof;
     figure(2); 
     hold on;
-    scale=100;
+    scale=20;
    
     for ielem=1:nelems
         node1=elems(ielem,1);

@@ -920,7 +920,7 @@ void Foam::fv::actuatorBernoulliLineElement::rotate
     // Rotate the span and chord vectors of the element
     chordDirection_ = RM & chordDirection_;
     spanDirection_ = RM & spanDirection_;
-     structforceVector_ = RM & structforceVector_;
+    structforceVector_ = RM & structforceVector_;
     // Rotate the element's velocity vector if specified
     if (rotateVelocity)
     {
