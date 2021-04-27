@@ -143,9 +143,6 @@ protected:
         //- Create initial actuator line elements
         void createInitialElements();
 
-        //- Create actuator line elements from updated positions
-        void reevaluateElements(List<List<scalar>> Deformations);
-
         //- Read dictionary
         bool read(const dictionary& dict);
 
