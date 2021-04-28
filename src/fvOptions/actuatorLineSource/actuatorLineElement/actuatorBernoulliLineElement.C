@@ -249,7 +249,7 @@ Foam::scalar Foam::fv::actuatorBernoulliLineElement::calcProjectionEpsilon()
     {
         // Raise fatal error since mesh size cannot be detected
         FatalErrorIn("void actuatorBernoulliLineElement::applyForceField()")
-            << "Position of " << name_  << " not found in mesh"
+            << "Position "<< position_<<" of " << name_  << " not found in mesh"
             << abort(FatalError);
     }
 
@@ -436,7 +436,7 @@ void Foam::fv::actuatorBernoulliLineElement::calculateInflowVelocity
             {
                 // Raise fatal error since inflow velocity cannot be detected
                 FatalErrorIn("void actuatorBernoulliLineElement::calculateForce()")
-                    << "Inflow velocity point for " << name_
+                    << "Inflow velocity point "<<inflowVelocityPoint <<" for " << name_
                     << " not found in mesh"
                     << abort(FatalError);
             }
@@ -453,7 +453,7 @@ void Foam::fv::actuatorBernoulliLineElement::calculateInflowVelocity
     {
         // Raise fatal error since inflow velocity cannot be detected
         FatalErrorIn("void actuatorBernoulliLineElement::calculateForce()")
-            << "Inflow velocity point for " << name_
+            << "Inflow velocity point "<< inflowVelocityPoint <<" for " << name_
             << " not found in mesh"
             << abort(FatalError);
     }

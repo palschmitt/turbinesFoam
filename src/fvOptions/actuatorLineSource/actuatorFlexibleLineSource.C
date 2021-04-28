@@ -586,7 +586,7 @@ if (t != lastMotionTime_)
 
 *///////////////////////////////////////////////////////////////////////			
 //Create input data for FEA Analysis
-Info <<"Number of elements " <<nElements_ <<endl;
+//Info <<"Number of elements " <<nElements_ <<endl;
 List<List<scalar>> FEAnodes;
 FEAnodes.resize(2*nElements_+1);
 List<List<int>>	FEAelems;
@@ -614,7 +614,7 @@ scalar rho=1000; //Density missing for incompressible cases? rhoref?
 //Info<< "AL Element spanLength "<<elements_[0].spanLength() <<endl;
 
 vector Position=elements_[0].position()-0.5*elements_[0].spanLength()*elements_[0].spanDirection();
-Info<< "First Node Pos "<<Position <<endl;
+//Info<< "First Node Pos "<<Position <<endl;
 //vector Position=elements_[0].position();
 SubList.clear();
 SubList.resize(3);
@@ -721,19 +721,19 @@ FEAsects[2*i+1]=elements_[i].FEAsects();//Section data A        Iz       Iy     
 }	
 //*////////////////////////////////////////////////////////////////////////		
 //Create FA and apply returned discplacement
-Info<< "Input for Frame Analysis: "<< endl;
-Info<< "FEAnodes: "<<FEAnodes<< endl;
+//Info<< "Input for Frame Analysis: "<< endl;
+//Info<< "FEAnodes: "<<FEAnodes<< endl;
 //Info<< "FEAelems: "<<FEAelems<< endl;
 //Info<< "FEArestraints: "<<FEArestraints<< endl;
 //Info<< "FEAmats: "<<FEAmats<< endl;
 //Info<< "FEAsects: "<<FEAsects<< endl;
-Info<< "FEAloads: "<<FEAloads<< endl;
+//Info<< "FEAloads: "<<FEAloads<< endl;
 //Info<< "FEAprescribed: "<<FEAprescribed<< endl;
 
 
 //Execute FEA simulation
 FrameAnalysis FA(FEAnodes,FEAelems,FEArestraints, FEAmats,FEAsects,FEAloads,FEAprescribed);
-Info<< "Deformation from FEA Analysis "<<FA.nodedispList()<< endl;
+//Info<< "Deformation from FEA Analysis "<<FA.nodedispList()<< endl;
 
 //Ugly data transfer, needs cleaning and proper access to FA data
 List<List<scalar>> FEADeformation=FA.nodedispList();
@@ -754,6 +754,7 @@ forAll(elements_,i)
 //Update ALelement  positions to center FEA node
 
 elements_[i].setPosition(NewFEANodepositions[2*i+1]);
+elements_[i].setDisplacement(vector(FEADeformation[2*i+1][0],FEADeformation[2*i+1][1],FEADeformation[2*i+1][2]));
 
 //Update ALelement  spandirection and length
 vector P1=vector(NewFEANodepositions[2*i]);
@@ -1116,6 +1117,7 @@ void Foam::fv::actuatorFlexibleLineSource::addSup
     }
 
 }
+
 
 void Foam::fv::actuatorFlexibleLineSource::writeVTK()
 {
