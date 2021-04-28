@@ -603,6 +603,10 @@ const Foam::vector& Foam::fv::actuatorBernoulliLineElement::velocity()
 {
     return velocity_;
 }
+const Foam::scalar& Foam::fv::actuatorBernoulliLineElement::omega()
+{
+    return omega_;
+}
 
 
 const Foam::vector& Foam::fv::actuatorBernoulliLineElement::relativeVelocity()
@@ -899,7 +903,10 @@ void Foam::fv::actuatorBernoulliLineElement::rotate
         Info<< "Initial chordDirection: " << chordDirection_ << endl;
         Info<< "Initial spanDirection: " << spanDirection_ << endl;
         Info<< "Initial velocity: " << velocity_ << endl;
+        Info<< "Initial structforceVector: " << structforceVector_<< endl;
     }
+        
+    
     
       // Rotation matrices make a rotation about the origin, so need to subtract
     // rotation point off the point to be rotated.
@@ -920,12 +927,13 @@ void Foam::fv::actuatorBernoulliLineElement::rotate
     // Rotate the span and chord vectors of the element
     chordDirection_ = RM & chordDirection_;
     spanDirection_ = RM & spanDirection_;
-    structforceVector_ = RM & structforceVector_;
+    
     // Rotate the element's velocity vector if specified
     if (rotateVelocity)
     {
         velocity_ = RM & velocity_;
         chordRefDirection_ = RM & chordRefDirection_;
+        structforceVector_ = RM & structforceVector_;
     }
 
     if (debug)
@@ -935,7 +943,10 @@ void Foam::fv::actuatorBernoulliLineElement::rotate
         Info<< "Final chordRefDirection: " << chordRefDirection_ << endl;
         Info<< "Final spanDirection: " << spanDirection_ << endl;
         Info<< "Final velocity: " << velocity_ << endl << endl;
+        Info<< "Final StructForce: " << structforceVector_ << endl << endl;
     }
+
+    
 }
 
 
@@ -974,6 +985,15 @@ void Foam::fv::actuatorBernoulliLineElement::setStructForce(vector Structforce)
             << structforceVector_ << " to " << Structforce << endl << endl;
     }
     structforceVector_ = Structforce;
+}
+void Foam::fv::actuatorBernoulliLineElement::setDisplacement(vector Displacement)
+{
+    if (debug)
+    {
+        Info<< "Changing Displacement of " << name_ << " from "
+            << displacement_ << " to " << Displacement << endl << endl;
+    }
+    displacement_ = Displacement;
 }
 
 
@@ -1083,6 +1103,10 @@ const Foam::vector& Foam::fv::actuatorBernoulliLineElement::force()
 const Foam::vector& Foam::fv::actuatorBernoulliLineElement::structforce()
 {
     return structforceVector_;
+}
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::displacement()
+{
+    return displacement_;
 }
 const Foam::List<int>& Foam::fv::actuatorBernoulliLineElement::FEArestraints()
 {

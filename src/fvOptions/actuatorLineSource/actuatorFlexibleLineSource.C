@@ -578,7 +578,10 @@ scalar Foam::fv::actuatorFlexibleLineSource::Cantileverdeflection(scalar x, scal
 
 void Foam::fv::actuatorFlexibleLineSource::evaluateDeformation()
 {
-
+//Run FEA analysis of the actuator line if time has changed
+scalar t = mesh_.time().value();
+if (t != lastMotionTime_)
+{
 /*///////////////Debugging Data///////////////////////////////////////
 
 *///////////////////////////////////////////////////////////////////////			
@@ -606,9 +609,9 @@ scalar rho=1000; //Density missing for incompressible cases? rhoref?
 //
 //AL Line element positions are nodes of FEA model
 //Get position +- spanwidth*spandirection as nodes positions
-Info<< "AL Element position "<<elements_[0].position() <<endl;
-Info<< "AL Element spanDirection "<<elements_[0].spanDirection() <<endl;
-Info<< "AL Element spanLength "<<elements_[0].spanLength() <<endl;
+//Info<< "AL Element position "<<elements_[0].position() <<endl;
+//Info<< "AL Element spanDirection "<<elements_[0].spanDirection() <<endl;
+//Info<< "AL Element spanLength "<<elements_[0].spanLength() <<endl;
 
 vector Position=elements_[0].position()-0.5*elements_[0].spanLength()*elements_[0].spanDirection();
 Info<< "First Node Pos "<<Position <<endl;
@@ -640,9 +643,9 @@ forAll(elements_, i)
 
 //Data per node	
 //Positions	
-Info<< "AL Element position "<<elements_[i].position() <<endl;
-Info<< "AL Element spanDirection "<<elements_[i].spanDirection() <<endl;
-Info<< "AL Element spanlength "<<elements_[i].spanLength() <<endl;
+//Info<< "AL Element position "<<elements_[i].position() <<endl;
+//Info<< "AL Element spanDirection "<<elements_[i].spanDirection() <<endl;
+//Info<< "AL Element spanlength "<<elements_[i].spanLength() <<endl;
 vector Position=elements_[i].position();
 SubList.clear();
 SubList.resize(3);
@@ -670,9 +673,14 @@ SubList=0.;
 SubList[0]=(elements_[i].force().x()-elements_[i].structforce().x())*rho;
 SubList[1]=(elements_[i].force().y()-elements_[i].structforce().y())*rho;
 SubList[2]=(elements_[i].force().z()-elements_[i].structforce().z())*rho;
-SubList[3]=elements_[i].pitchingMoment().x()*rho;
-SubList[4]=elements_[i].pitchingMoment().y()*rho;
-SubList[5]=elements_[i].pitchingMoment().z()*rho;
+//Dummy force for debugging
+////vector DummyForce=vector(0.5, 0., 0.);
+//vector DummyForce=vector(0.1, 0.1*sin(elements_[i].omega()*t), 0.1*cos(elements_[i].omega()*t));
+//Info<< "Dummy Force: " <<DummyForce <<endl;
+//SubList[0]=(DummyForce.x()-elements_[i].structforce().x())*rho;
+//SubList[1]=(DummyForce.y()-elements_[i].structforce().y())*rho;
+//SubList[2]=(DummyForce.z()-elements_[i].structforce().z())*rho;
+
 FEAloads[2*i+1]=SubList;//Fluid force
 
 //Empty node
@@ -688,6 +696,8 @@ FEAprescribed[2*i+1]=SubList;//Apply previous deformation?
 
 //Save old force to only apply difference causing additional deformation
 elements_[i].setStructForce(elements_[i].force());
+
+//elements_[i].setStructForce(DummyForce);
 
 //Data below per element
 //Element definitions
@@ -749,14 +759,16 @@ elements_[i].setPosition(NewFEANodepositions[2*i+1]);
 vector P1=vector(NewFEANodepositions[2*i]);
 vector P2=vector(NewFEANodepositions[2*i+2]);
 vector spanLength=P2-P1;
-Info<< "Updating Spanlength to "<<spanLength<< endl;
+//Info<< "Updating Spanlength to "<<spanLength<< endl;
 
 elements_[i].setSpanLength(mag(spanLength));
 elements_[i].setSpanDirection(spanLength/mag(spanLength));
-Info<< "AoA "<< elements_[i].angleOfAttack()<< endl;
+//Info<< "AoA "<< elements_[i].angleOfAttack()<< endl;
+}
+lastMotionTime_ = t;
+}
 }
 
-}
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -1198,24 +1210,21 @@ void Foam::fv::actuatorFlexibleLineSource::writeVTK()
                 << eForce[2]
                 << nl;
         }
+    // Write element Displacement
+    vtkFilePtr_()
+        << "VECTORS displacement double "<<nl;
 
-
-    //// Write element stiffness
-    //vtkFilePtr_()
-        //<< "List Stiffness double "<<nl;
-
-        //forAll(elements_, i)
-        //{
-            //vector eStiffness (elements_[i].stiffness());
-            //vtkFilePtr_()
-                //<< eStiffness[0]
-                //<< " "
-                //<< eStiffness[1]
-                //<< " "
-                //<< eStiffness[2]
-                //<< nl;
-        //}
-    //vtkFilePtr_() << endl;
+        forAll(elements_, i)
+        {
+            vector eDisp (elements_[i].displacement());
+            vtkFilePtr_()
+                << eDisp[0]
+                << " "
+                << eDisp[1]
+                << " "
+                << eDisp[2]
+                << nl;
+        }
 
     // Add to the VTK sequence counter
     vtkFileSequence_++;

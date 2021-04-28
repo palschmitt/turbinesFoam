@@ -119,6 +119,8 @@ protected:
         //- Structural force on element -- vector that is perpendicular to
         //  spanDirection,
         vector structforceVector_;
+        //Last applied displacement from FEA
+        vector displacement_;
         //- Structural stiffness of element 
         List<scalar> FEAmaterial_;// E  Poisson
         List<scalar> FEAsects_;//Section data A        Iz       Iy          J        alpha
@@ -308,12 +310,17 @@ public:
                         
             //- Return the element velocity
             const vector& velocity();
+            
+            //- Return the element angular velocity
+            const scalar& omega();
 
             //- Return force vector from element
             const vector& force();
             
             //- Return structural force vector from element
             const vector& structforce();
+            //- Return last applied deformation
+            const vector& displacement();
             //- Return stiffness vector from element
             const List<scalar>& FEAsects();
             const List<scalar>& FEAmaterial();
@@ -409,6 +416,8 @@ public:
             
             //Set structural force
             void setStructForce(vector Structforce);
+            
+            void setDisplacement(vector Displacement);
             
             void setFEASects(List<scalar> FEAsects);            
             void setFEAMaterial(List<scalar> FEAmaterial);            
