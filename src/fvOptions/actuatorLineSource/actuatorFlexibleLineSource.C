@@ -605,13 +605,8 @@ List<scalar> SubList;//Ugly workaround
 List<int> SubiList;//Ugly workaround
 
 //Better set FEA material as material/rho? Or get rhoInf from ObjReg?
-scalar rho=1000; //Density missing for incompressible cases? rhoref?
+scalar rho=1; //Density missing for incompressible cases? rhoref?
 //
-//AL Line element positions are nodes of FEA model
-//Get position +- spanwidth*spandirection as nodes positions
-//Info<< "AL Element position "<<elements_[0].position() <<endl;
-//Info<< "AL Element spanDirection "<<elements_[0].spanDirection() <<endl;
-//Info<< "AL Element spanLength "<<elements_[0].spanLength() <<endl;
 
 vector Position=elements_[0].position()-0.5*elements_[0].spanLength()*elements_[0].spanDirection();
 //Info<< "First Node Pos "<<Position <<endl;
@@ -665,23 +660,27 @@ SubList[2]=Position.z();
 FEAnodes[2*i+2]=SubList;
 
 //List of forces in XYZ
-//Applying fluid force to FEAnode at center of element
-
+//Applying change in fluid force to FEAnode at center of element
+//Info<<"Fluid force: "<<elements_[i].force() <<endl;
 SubList.clear();
 SubList.resize(6);
 SubList=0.;
-SubList[0]=(elements_[i].force().x()-elements_[i].structforce().x())*rho;
-SubList[1]=(elements_[i].force().y()-elements_[i].structforce().y())*rho;
-SubList[2]=(elements_[i].force().z()-elements_[i].structforce().z())*rho;
+SubList[0]=(elements_[i].force().x()-elements_[i].structforce().x());
+SubList[1]=(elements_[i].force().y()-elements_[i].structforce().y());
+SubList[2]=(elements_[i].force().z()-elements_[i].structforce().z());
 //Dummy force for debugging
 ////vector DummyForce=vector(0.5, 0., 0.);
-//vector DummyForce=vector(0.1, 0.1*sin(elements_[i].omega()*t), 0.1*cos(elements_[i].omega()*t));
+//scalar ampl=1;
+//vector DummyForce=vector(ampl, ampl*cos(elements_[i].omega()*t), ampl*sin(elements_[i].omega()*t));
 //Info<< "Dummy Force: " <<DummyForce <<endl;
-//SubList[0]=(DummyForce.x()-elements_[i].structforce().x())*rho;
-//SubList[1]=(DummyForce.y()-elements_[i].structforce().y())*rho;
-//SubList[2]=(DummyForce.z()-elements_[i].structforce().z())*rho;
-
+//SubList[0]=(DummyForce.x()-elements_[i].structforce().x());
+//SubList[1]=(DummyForce.y()-elements_[i].structforce().y());
+//SubList[2]=(DummyForce.z()-elements_[i].structforce().z());
 FEAloads[2*i+1]=SubList;//Fluid force
+
+//Save forces to account for previous deformation, gets rotated
+//elements_[i].setStructForce(DummyForce);
+elements_[i].setStructForce(elements_[i].force());
 
 //Empty node
 SubList=0.;
@@ -694,10 +693,7 @@ SubList=0.;
 FEAprescribed[2*i]=SubList;//Apply previous deformation?
 FEAprescribed[2*i+1]=SubList;//Apply previous deformation?
 
-//Save old force to only apply difference causing additional deformation
-elements_[i].setStructForce(elements_[i].force());
 
-//elements_[i].setStructForce(DummyForce);
 
 //Data below per element
 //Element definitions
@@ -721,19 +717,19 @@ FEAsects[2*i+1]=elements_[i].FEAsects();//Section data A        Iz       Iy     
 }	
 //*////////////////////////////////////////////////////////////////////////		
 //Create FA and apply returned discplacement
-//Info<< "Input for Frame Analysis: "<< endl;
-//Info<< "FEAnodes: "<<FEAnodes<< endl;
+Info<< "Input for Frame Analysis: "<< endl;
+Info<< "FEAnodes: "<<FEAnodes<< endl;
 //Info<< "FEAelems: "<<FEAelems<< endl;
 //Info<< "FEArestraints: "<<FEArestraints<< endl;
 //Info<< "FEAmats: "<<FEAmats<< endl;
 //Info<< "FEAsects: "<<FEAsects<< endl;
-//Info<< "FEAloads: "<<FEAloads<< endl;
+Info<< "FEAloads: "<<FEAloads<< endl;
 //Info<< "FEAprescribed: "<<FEAprescribed<< endl;
 
 
 //Execute FEA simulation
 FrameAnalysis FA(FEAnodes,FEAelems,FEArestraints, FEAmats,FEAsects,FEAloads,FEAprescribed);
-//Info<< "Deformation from FEA Analysis "<<FA.nodedispList()<< endl;
+Info<< "Deformation from FEA Analysis "<<FA.nodedispList()<< endl;
 
 //Ugly data transfer, needs cleaning and proper access to FA data
 List<List<scalar>> FEADeformation=FA.nodedispList();

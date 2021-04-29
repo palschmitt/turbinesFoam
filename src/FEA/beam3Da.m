@@ -1,4 +1,6 @@
-function beam1
+close all 
+
+
 global K Kff Kfr Krf Krr;
 global Ff Fr deff defr;
 global nnodes nnode nelems ndof;
@@ -70,7 +72,7 @@ nodedisp=nodaldisp(nfree,order1);
 plotdisp(nodes,elems,nodedisp);
     
 
-end
+
 
 function Ke=elemstiff(E,G,A,Iz,Iy,J,L,alpha,Cx,Cy,Cz,Cxz,vert)
     global ndof nnode;

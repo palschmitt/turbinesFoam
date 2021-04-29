@@ -241,7 +241,7 @@ predisp();
 //std::cout << "deff: "<<endl<< deff_ <<endl;
 
 // solve for deflections
-deff_=solve(Kff_,(Ff_-Kfr_*defr_));
+deff_=solve(Kff_,(Ff_-Kfr_*defr_),arma::solve_opts::no_approx);
 
 // Find reactions
 Fr_=Krf_*deff_+Krr_*defr_;
