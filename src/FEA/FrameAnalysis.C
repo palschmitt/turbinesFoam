@@ -299,10 +299,10 @@ scalar L3=pow(L_,3);
        r13=Cz_;
        r21=(-dot(dot(Cx_,Cy_),cos(alpha_))-dot(Cz_,sin(alpha_)))/Cxz_;
        r22=dot(Cxz_,cos(alpha_));
-       r23=(-dot(dot(Cx_,Cz_),cos(alpha_))-dot(Cx_,sin(alpha_)))/Cxz_;
+       r23=(-dot(dot(Cy_,Cz_),cos(alpha_))+dot(Cx_,sin(alpha_)))/Cxz_;
        r31=(dot(dot(Cx_,Cy_),sin(alpha_))-dot(Cz_,cos(alpha_)))/Cxz_;
-       r32=dot(Cxz_,sin(alpha_));
-       r33=(Cx_*Cy_*sin(alpha_)+Cx_*cos(alpha_))/Cxz_;
+       r32=dot(-Cxz_,sin(alpha_));
+       r33=(Cy_*Cz_*sin(alpha_)+Cx_*cos(alpha_))/Cxz_;
    }
     else
     {

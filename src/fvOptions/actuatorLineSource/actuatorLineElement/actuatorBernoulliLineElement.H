@@ -102,6 +102,10 @@ protected:
 
         //- Location of element's half chord
         vector position_;
+        //- Location of element's start point
+        vector P1_;
+        //- Location of element's end point
+        vector P2_;
 
         //- Velocity of the element
         vector velocity_;
@@ -310,6 +314,10 @@ public:
                         
             //- Return the element velocity
             const vector& velocity();
+            //- Return the element P1
+            const vector& P1();
+            //- Return the element P2
+            const vector& P2();
             
             //- Return the element angular velocity
             const scalar& omega();
@@ -413,6 +421,10 @@ public:
 
             //- Set velocity of element
             void setVelocity(vector velocity);
+            //- Set velocity of element
+            void setP1(vector P1);
+            //- Set velocity of element
+            void setP2(vector P2);
             
             //Set structural force
             void setStructForce(vector Structforce);

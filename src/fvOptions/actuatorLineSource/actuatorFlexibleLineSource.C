@@ -366,6 +366,8 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
         // Create a dictionary for this actuatorFlexibleLineElement
         dictionary dict;
         dict.add("position", position);
+        dict.add("P1", point1);
+        dict.add("P2", point2);
         dictionary profileDataDict = profileData_.subDict(profileName);
         dict.add("profileData", profileDataDict);
         dict.add("profileName", profileName);
@@ -608,7 +610,7 @@ List<int> SubiList;//Ugly workaround
 scalar rho=1; //Density missing for incompressible cases? rhoref?
 //
 
-vector Position=elements_[0].position()-0.5*elements_[0].spanLength()*elements_[0].spanDirection();
+vector Position=elements_[0].P1();
 //Info<< "First Node Pos "<<Position <<endl;
 //vector Position=elements_[0].position();
 SubList.clear();
@@ -650,7 +652,7 @@ SubList[1]=Position.y();
 SubList[2]=Position.z();
 FEAnodes[2*i+1]=SubList;
 
-Position=elements_[i].position()+0.5*elements_[i].spanLength()*elements_[i].spanDirection();
+Position=elements_[i].P2();
 SubList.clear();
 SubList.resize(3);
 SubList=0.;
@@ -749,13 +751,13 @@ forAll(elements_,i)
 {
 //Update ALelement  positions to center FEA node
 
+elements_[i].setP1(NewFEANodepositions[2*i]);
 elements_[i].setPosition(NewFEANodepositions[2*i+1]);
+elements_[i].setP2(NewFEANodepositions[2*i+2]);
 elements_[i].setDisplacement(vector(FEADeformation[2*i+1][0],FEADeformation[2*i+1][1],FEADeformation[2*i+1][2]));
 
-//Update ALelement  spandirection and length
-vector P1=vector(NewFEANodepositions[2*i]);
-vector P2=vector(NewFEANodepositions[2*i+2]);
-vector spanLength=P2-P1;
+//Update ALelement  spandirection and length, ugly,  could be update function in element!
+vector spanLength=elements_[i].P2()-elements_[i].P1();
 //Info<< "Updating Spanlength to "<<spanLength<< endl;
 
 elements_[i].setSpanLength(mag(spanLength));

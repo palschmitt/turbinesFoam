@@ -1,8 +1,6 @@
-close all 
-
-
+function beam1
 global K Kff Kfr Krf Krr;
-global Ff Fr deff defr;
+global Ff Fr deff defr Felems;
 global nnodes nnode nelems ndof;
 
 % read in input data
@@ -53,7 +51,7 @@ Krr=zeros(totdof-nfree,totdof-nfree);
 Ff=zeros(nfree,1);
 Fr=zeros(nfree,1);
 defr=zeros(totdof-nfree,1);
-
+Felems=zeros(ndof*nnode,nelems);
 
 % reorder sttifness matrix and partition matrix
 reorder(nfree,order2);
@@ -70,9 +68,45 @@ Fr=Krf*deff+Krr*defr;
 % Plot deformed shape
 nodedisp=nodaldisp(nfree,order1);
 plotdisp(nodes,elems,nodedisp);
+
+
+% Recover forces in elements
+recoverForces(sects,mats,elems,nodes,nodedisp)
+
+pause;
+
+% plot SF/BM diagrams
+ielem=0;
+choice = questdlg('Do you want shear force or bending moment?', ...
+	'Selection Menu','Yes','No','No');
+   switch choice
+      case 'Yes'
+        noelement=true;
+        while noelement
+           prompt = {'Enter element number(0 to exit):'};
+           dlg_title = 'Input';
+           num_lines = 1;
+           defaultans = {'1'};
+           answer = inputdlg(prompt,dlg_title,num_lines,defaultans);
+           if(isempty(answer))
+               noelement=false;
+           else
+           ielem=str2num(answer{1});
+           end
+           if ielem >= 1 && ielem <= ielem
+              plotSFBM(ielem)
+              pause;
+           elseif ielem == 0
+             noelement=false;    
+           end
+        end  
+      case 'No'
+        return;
+   end
+
     
 
-
+end
 
 function Ke=elemstiff(E,G,A,Iz,Iy,J,L,alpha,Cx,Cy,Cz,Cxz,vert)
     global ndof nnode;
@@ -97,10 +131,13 @@ function Ke=elemstiff(E,G,A,Iz,Iy,J,L,alpha,Cx,Cy,Cz,Cxz,vert)
        r13=Cz;
        r21=(-Cx*Cy*cosd(alpha)-Cz*sind(alpha))/Cxz;
        r22=Cxz*cosd(alpha);
-       r23=(-Cx*Cz*cosd(alpha)-Cx*sind(alpha))/Cxz;
+%      r23=(-Cx*Cz*cosd(alpha)-Cx*sind(alpha))/Cxz;
+       r23=(-Cy*Cz*cosd(alpha)+Cx*sind(alpha))/Cxz;
        r31=(Cx*Cy*sind(alpha)-Cz*cosd(alpha))/Cxz;
-       r32=Cxz*sind(alpha);
-       r33=(Cx*Cy*sind(alpha)+Cx*cosd(alpha))/Cxz;
+%      r32=Cxz*sind(alpha);
+       r32=-Cxz*sind(alpha);
+%       r33=(Cx*Cy*sind(alpha)+Cx*cosd(alpha))/Cxz;
+       r33=(Cy*Cz*sind(alpha)+Cx*cosd(alpha))/Cxz;
     else
         r11=0;
         r12=Cy;
@@ -249,6 +286,105 @@ function predisp(nfree,prescribed,order2)
             defr(ipos2)=dispvector(idof);
         end
     end    
+end
+
+function recoverForces(sects,mats,elems,nodes,nodedisp)
+   global Felems ;
+   global nnodes nnode nelems ndof;
+   % calculate forces for each element 
+   forces=zeros(ndof*2,1);
+   def=zeros(ndof*2,1);
+   for ielem=1:nelems
+       forces=zeros(ndof*2,1);
+       E=mats(ielem,1); 
+       Poi=mats(ielem,2);
+       G=E/(2*(1+Poi));
+       A=sects(ielem,1);
+       Iy=sects(ielem,2);
+       Iz=sects(ielem,3);
+       J=sects(ielem,4);
+       alpha=sects(ielem,5);
+       elnodes=elems(ielem,:);
+       dx=nodes(elnodes(2),1)-nodes(elnodes(1),1);
+       dy=nodes(elnodes(2),2)-nodes(elnodes(1),2);
+       dz=nodes(elnodes(2),3)-nodes(elnodes(1),3);   
+       L=sqrt(dx^2+dy^2+dz^2);
+       Cx=dx/L;
+       Cy=dy/L;
+       Cz=dz/L;
+       Cxz=sqrt(Cx^2+Cz^2);
+       vert=false;
+       if(dx==0 && dz==0)
+          vert=true;
+       end
+       Ke=elemstiffForce(E,G,A,Iz,Iy,J,L,alpha,Cx,Cy,Cz,Cxz,vert);
+       % retrive glogal deflections for element
+       
+       for inode=1:nnode
+           for idof=1:ndof
+              node=elnodes(inode);
+              offset1=(node-1)*ndof;
+              offset2=(inode-1)*ndof;
+              def(offset2+idof)=nodedisp(offset1+idof);
+           end
+       end
+       Felems(:,ielem)=Ke*def;
+   end 
+end
+
+
+function Ke=elemstiffForce(E,G,A,Iz,Iy,J,L,alpha,Cx,Cy,Cz,Cxz,vert)
+    global ndof nnode;
+    Ke=zeros(nnode*ndof); 
+    Ke=[E*A/L,0,0,0,0,0,-E*A/L,0,0,0,0,0; ...
+        0,12*E*Iz/L^3,0,0,0,6*E*Iz/L^2,0,-12*E*Iz/L^3,0,0,0,6*E*Iz/L^2; ...
+        0,0,12*E*Iy/L^3,0,-6*E*Iy/L^2,0,0,0,-12*E*Iy/L^3,0,-6*E*Iy/L^2,0; ...
+        0,0,0,J*G/L,0,0,0,0,0,-J*G/L,0,0; ...
+        0,0,-6*E*Iy/L^2,0,4*E*Iy/L,0,0,0,6*E*Iy/L^2,0,2*E*Iy/L,0; ...
+        0,6*E*Iz/L^2,0,0,0,4*E*Iz/L,0,-6*E*Iz/L^2,0,0,0,2*E*Iz/L; ...
+        -E*A/L,0,0,0,0,0,E*A/L,0,0,0,0,0; ...
+        0,-12*E*Iz/L^3,0,0,0,-6*E*Iz/L^2,0,12*E*Iz/L^3,0,0,0,-6*E*Iz/L^2; ...
+        0,0,-12*E*Iy/L^3,0,6*E*Iy/L^2,0,0,0,12*E*Iy/L^3,0,6*E*Iy/L^2,0; ...
+        0,0,0,-J*G/L,0,0,0,0,0,J*G/L,0,0; ...
+        0,0,-6*E*Iy/L^2,0,2*E*Iy/L,0,0,0,6*E*Iy/L^2,0,4*E*Iy/L,0; ...
+        0,6*E*Iz/L^2,0,0,0,2*E*Iz/L,0,-6*E*Iz/L^2,0,0,0,4*E*Iz/L];
+    
+    T=zeros(nnode*ndof);
+    if ~vert
+       r11=Cx;
+       r12=Cy;
+       r13=Cz;
+       r21=(-Cx*Cy*cosd(alpha)-Cz*sind(alpha))/Cxz;
+       r22=Cxz*cosd(alpha);
+       r23=(-Cx*Cz*cosd(alpha)-Cx*sind(alpha))/Cxz;
+       r31=(Cx*Cy*sind(alpha)-Cz*cosd(alpha))/Cxz;
+       r32=Cxz*sind(alpha);
+       r33=(Cx*Cy*sind(alpha)+Cx*cosd(alpha))/Cxz;
+    else
+        r11=0;
+        r12=Cy;
+        r13=0;
+        r21=-Cy*cosd(alpha);
+        r22=0;
+        r23=sind(alpha);
+        r31=Cy*sind(alpha);
+        r32=0;
+        r33=cosd(alpha);
+    end
+    T=[r11,r12,r13,0,0,0,0,0,0,0,0,0; ...
+       r21,r22,r23,0,0,0,0,0,0,0,0,0; ...
+       r31,r32,r33,0,0,0,0,0,0,0,0,0; ...
+       0,0,0,r11,r12,r13,0,0,0,0,0,0; ...
+       0,0,0,r21,r22,r23,0,0,0,0,0,0; ...
+       0,0,0,r31,r32,r33,0,0,0,0,0,0; ...
+       0,0,0,0,0,0,r11,r12,r13,0,0,0; ...
+       0,0,0,0,0,0,r21,r22,r23,0,0,0; ...
+       0,0,0,0,0,0,r31,r32,r33,0,0,0; ...
+       0,0,0,0,0,0,0,0,0,r11,r12,r13; ...
+       0,0,0,0,0,0,0,0,0,r21,r22,r23; ...
+       0,0,0,0,0,0,0,0,0,r31,r32,r33];
+   
+    Ke=Ke*T;
 end
 
 function [nodes,elems,restraints,mats,sects,loads,prescribed]=readindata()
@@ -406,6 +542,7 @@ function plotdisp(nodes,elems,nodedisp)
       
         plot3(x,y,z);
     end
+    title('displacements');
     hold off;
 end
 
@@ -445,5 +582,103 @@ global nnodes nnode nelems ndof;
        label1=sprintf('%d',i);
        text(xcord,ycord,zcord,label1,'Color','blue');
    end
+   title('nodes and elements');
    hold off;
+end
+
+function plotSFBM(ielem)
+   global Felems nelems ndof
+   
+
+   % SF or BM diagram
+   choice = questdlg('Do you wnt shear force or bending moment?', ...
+	'Selection Menu','Shear Force','Bending Moment','Bending Moment');
+   % Handle response
+   switch choice
+      case 'Shear Force'
+        type = 1;
+      case 'Bending Moment'
+        type = 2;
+   end
+   
+   % retrieve forces
+   if type == 1
+     force1end1=Felems(3,ielem);
+     force2end1=Felems(2,ielem);
+     force1end2=Felems(9,ielem);
+     force2end2=Felems(8,ielem);
+   else
+     force1end1=Felems(5,ielem);
+     force2end1=Felems(6,ielem);
+     force1end2=Felems(11,ielem);
+     force2end2=Felems(12,ielem); 
+   end
+   figure(3)
+   clf(3);
+   view(3)
+   daspect([1 1 1]);
+   rotate3d on;
+   len=10;
+   scale=0.1; 
+   vertices=[0,0,0; ...
+             10,0,0; ...
+             10,0,scale*force1end2; ...
+             0,0,-scale*force1end1];  
+   faces=[1,2,3,4];
+   patch('Faces',faces,'Vertices',vertices,'FaceColor','yellow');
+   hold on;
+   offset=0.1;
+   label=sprintf('%5.2f',-force1end1);
+   text(offset,offset,vertices(4,3)+offset,label,'FontSize',14);
+   label=sprintf('%5.2f',force1end2);
+   text(10+offset,offset,vertices(3,3)+offset,label,'FontSize',14);
+   
+   vertices=[0,0,0; ...
+             10,0,0; ...
+             10,-scale*force2end2,0; ...
+             0,scale*force2end1,0];
+   
+   if(type==1)
+      vertices(3,2)=-vertices(3,2);
+      vertices(4,2)=-vertices(4,2);     
+   end 
+   faces=[1,2,3,4];
+   if(type==1)
+      force2end1=-force2end1;
+      force2end2=-force2end2;     
+   end 
+   patch('Faces',faces,'Vertices',vertices,'FaceColor','red');
+   label=sprintf('%5.2f',force2end1);
+   text(offset,vertices(4,2)+offset,offset,label,'FontSize',14);
+   label=sprintf('%5.2f',-force2end2);
+   text(10+offset,vertices(3,2)+offset,offset,label,'FontSize',14);
+   
+   offset=0.01;
+   scale=1;
+   p1 = [-1 -1 -1];                         
+   p2 = [1 -1 -1];
+   dp = p2-p1;
+   quiver3(p1(1),p1(2),p1(3),dp(1),dp(2),dp(3),scale,'MaxHeadSize',0.5,'color','k');
+   text(p2(1)+offset,p2(2)+offset,p2(3)+offset,'x','FontSize',14);
+   p1 = [-1 -1 -1];                         
+   p2 = [-1 2 -1];                         
+   dp = p2-p1;
+   quiver3(p1(1),p1(2),p1(3),dp(1),dp(2),dp(3),scale,'MaxHeadSize',0.5,'color','k');
+   text(p2(1)+offset,p2(2)+offset,p2(3)+offset,'y','FontSize',14);
+   p1 = [-1 -1 -1];                         
+   p2 = [-1 -1 1];                         
+   dp = p2-p1;
+   quiver3(p1(1),p1(2),p1(3),dp(1),dp(2),dp(3),scale,'MaxHeadSize',0.5,'color','k');
+   text(p2(1)+offset,p2(2)+offset,p2(3)+offset,'z','FontSize',14);
+   
+   if(type==1)
+      label=sprintf('Shear Force Diagram \n  For element%3d',ielem); 
+   else
+      label=sprintf('Bending Moment Diagram \n  For element %5d',ielem);    
+   end
+   title(label);
+   
+   hold off
+
+   
 end

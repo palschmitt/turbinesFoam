@@ -48,6 +48,8 @@ void Foam::fv::actuatorBernoulliLineElement::read()
 {
     // Parse dictionary
     dict_.lookup("position") >> position_;
+    dict_.lookup("P1") >> P1_;
+    dict_.lookup("P2") >> P2_;
     dict_.lookup("chordLength") >> chordLength_;
     dict_.lookup("chordDirection") >> chordDirection_;
     dict_.lookup("chordRefDirection") >> chordRefDirection_;
@@ -603,6 +605,14 @@ const Foam::vector& Foam::fv::actuatorBernoulliLineElement::velocity()
 {
     return velocity_;
 }
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::P1()
+{
+    return P1_;
+}
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::P2()
+{
+    return P2_;
+}
 const Foam::scalar& Foam::fv::actuatorBernoulliLineElement::omega()
 {
     return omega_;
@@ -909,7 +919,7 @@ void Foam::fv::actuatorBernoulliLineElement::rotate
     
     
       // Rotation matrices make a rotation about the origin, so need to subtract
-    // rotation point off the point to be rotated.
+    // rotation point off the point to be rotated. Ugly, write a proper function!
     vector point = position_;  
     
     point -= rotationPoint;
@@ -923,6 +933,35 @@ void Foam::fv::actuatorBernoulliLineElement::rotate
 
     // Set the position of the element
     position_ = point;
+    
+    //Rotate P1
+    point = P1_;  
+    
+    point -= rotationPoint;
+
+    // Perform the rotation.
+    point = RM & point;
+
+    // Return the rotated point to its new location relative to the rotation
+    // point
+    point += rotationPoint;
+
+    // Set the position of the element
+    P1_ = point;
+    //Rotate P2
+    point = P2_;  
+    
+    point -= rotationPoint;
+
+    // Perform the rotation.
+    point = RM & point;
+
+    // Return the rotated point to its new location relative to the rotation
+    // point
+    point += rotationPoint;
+
+    // Set the position of the element
+    P2_ = point;
 
     // Rotate the span and chord vectors of the element
     chordDirection_ = RM & chordDirection_;
@@ -976,6 +1015,24 @@ void Foam::fv::actuatorBernoulliLineElement::setVelocity(vector velocity)
             << velocity_ << " to " << velocity << endl << endl;
     }
     velocity_ = velocity;
+}
+void Foam::fv::actuatorBernoulliLineElement::setP1(vector P1)
+{
+    if (debug)
+    {
+        Info<< "Changing P1 of " << name_ << " from "
+            << P1_ << " to " << P1 << endl << endl;
+    }
+    P1_ = P1;
+}
+void Foam::fv::actuatorBernoulliLineElement::setP2(vector P2)
+{
+    if (debug)
+    {
+        Info<< "Changing P1 of " << name_ << " from "
+            << P2_ << " to " << P2 << endl << endl;
+    }
+    P2_ = P2;
 }
 void Foam::fv::actuatorBernoulliLineElement::setStructForce(vector Structforce)
 {
