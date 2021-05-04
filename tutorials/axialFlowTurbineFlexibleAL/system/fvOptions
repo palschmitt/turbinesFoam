@@ -64,10 +64,18 @@ turbine
                 writePerf   true;
                 writeVTK   true;
                 writeElementPerf true;
-                nElements   5;
+                nElements   28;
                 elementProfiles
                 (
                     cylinder
+                    S826
+                    S826
+                    S826
+                    S826
+                    S826
+                    S826
+                    S826
+                    S826
                     S826
                     S826
                     S826
@@ -92,8 +100,7 @@ turbine
                 $blade2;
                 azimuthalOffset 240.0;
             }
- 
-      	    }
+        }
 
         tower
         {
