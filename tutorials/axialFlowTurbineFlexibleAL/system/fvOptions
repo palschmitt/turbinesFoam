@@ -79,7 +79,7 @@ turbine
                     #include "elementData"
                 );
             }
-/*            blade2
+            blade2
             {
                 $blade1;
                 writePerf   false;
@@ -92,7 +92,7 @@ turbine
                 $blade2;
                 azimuthalOffset 240.0;
             }
-  */
+ 
       	    }
 
         tower

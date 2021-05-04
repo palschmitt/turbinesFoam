@@ -754,7 +754,7 @@ forAll(elements_,i)
 elements_[i].setP1(NewFEANodepositions[2*i]);
 elements_[i].setPosition(NewFEANodepositions[2*i+1]);
 elements_[i].setP2(NewFEANodepositions[2*i+2]);
-elements_[i].setDisplacement(vector(FEADeformation[2*i+1][0],FEADeformation[2*i+1][1],FEADeformation[2*i+1][2]));
+elements_[i].setDisplacement(vector(FEADeformation[2*i+1][0],FEADeformation[2*i+1][1],FEADeformation[2*i+1][2])+elements_[i].displacement());
 
 //Update ALelement  spandirection and length, ugly,  could be update function in element!
 vector spanLength=elements_[i].P2()-elements_[i].P1();
