@@ -670,6 +670,12 @@ SubList=0.;
 SubList[0]=(elements_[i].force().x()-elements_[i].structforce().x());
 SubList[1]=(elements_[i].force().y()-elements_[i].structforce().y());
 SubList[2]=(elements_[i].force().z()-elements_[i].structforce().z());
+
+//pitchingMoment as acting aorund span for external moment
+SubList[3]=elements_[i].pitchingMoment().x()-elements_[i].structmoment().x();
+SubList[4]=elements_[i].pitchingMoment().y()-elements_[i].structmoment().y();
+SubList[5]=elements_[i].pitchingMoment().z()-elements_[i].structmoment().z();
+
 //Dummy force for debugging
 ////vector DummyForce=vector(0.5, 0., 0.);
 //scalar ampl=1;
@@ -683,6 +689,7 @@ FEAloads[2*i+1]=SubList;//Fluid force
 //Save forces to account for previous deformation, gets rotated
 //elements_[i].setStructForce(DummyForce);
 elements_[i].setStructForce(elements_[i].force());
+elements_[i].setStructMoment(elements_[i].pitchingMoment());
 
 //Empty node
 SubList=0.;
@@ -763,6 +770,12 @@ vector spanLength=elements_[i].P1()-elements_[i].P2();
 elements_[i].setSpanLength(mag(spanLength));
 elements_[i].setSpanDirection(spanLength/mag(spanLength));
 //Info<< "AoA "<< elements_[i].angleOfAttack()<< endl;
+
+//Update pitch by projecting center node rotational deformation to spandirection
+//Still requires saving earlier torsiondeformatoin, better save all DoF deformations in one go
+//vector rotation=vector(FEADeformation[2*i+1][3],FEADeformation[2*i+1][4],FEADeformation[2*i+1][5]);
+//elements_[i].pitch(rotation & elements_[i].spanDirection());
+
 }
 lastMotionTime_ = t;
 }

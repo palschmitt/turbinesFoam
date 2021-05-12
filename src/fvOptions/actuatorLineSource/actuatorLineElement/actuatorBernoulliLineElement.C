@@ -974,6 +974,7 @@ void Foam::fv::actuatorBernoulliLineElement::rotate
         velocity_ = RM & velocity_;
         chordRefDirection_ = RM & chordRefDirection_;
         structforceVector_ = RM & structforceVector_;
+        structmomentVector_= RM & structmomentVector_;
     }
 
     if (debug)
@@ -984,6 +985,7 @@ void Foam::fv::actuatorBernoulliLineElement::rotate
         Info<< "Final spanDirection: " << spanDirection_ << endl;
         Info<< "Final velocity: " << velocity_ << endl << endl;
         Info<< "Final StructForce: " << structforceVector_ << endl << endl;
+        Info<< "Final StructMoment: " << structmomentVector_ << endl << endl;
     }
 
     
@@ -1043,6 +1045,15 @@ void Foam::fv::actuatorBernoulliLineElement::setStructForce(vector Structforce)
             << structforceVector_ << " to " << Structforce << endl << endl;
     }
     structforceVector_ = Structforce;
+}
+void Foam::fv::actuatorBernoulliLineElement::setStructMoment(vector Structmoment)
+{
+    if (debug)
+    {
+        Info<< "Changing Structmoment of " << name_ << " from "
+            << structmomentVector_ << " to " << Structmoment << endl << endl;
+    }
+    structmomentVector_ = Structmoment;
 }
 void Foam::fv::actuatorBernoulliLineElement::setDisplacement(vector Displacement)
 {
@@ -1161,6 +1172,10 @@ const Foam::vector& Foam::fv::actuatorBernoulliLineElement::force()
 const Foam::vector& Foam::fv::actuatorBernoulliLineElement::structforce()
 {
     return structforceVector_;
+}
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::structmoment()
+{
+    return structmomentVector_;
 }
 const Foam::vector& Foam::fv::actuatorBernoulliLineElement::displacement()
 {

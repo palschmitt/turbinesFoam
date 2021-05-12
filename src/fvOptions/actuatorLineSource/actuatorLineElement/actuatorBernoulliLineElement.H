@@ -123,6 +123,8 @@ protected:
         //- Structural force on element -- vector that is perpendicular to
         //  spanDirection,
         vector structforceVector_;
+        //- Structural moment on element -- 
+        vector structmomentVector_;
         //Last applied displacement from FEA
         vector displacement_;
         //- Structural stiffness of element 
@@ -327,6 +329,8 @@ public:
             
             //- Return structural force vector from element
             const vector& structforce();
+            //- Return structural moment vector from element
+            const vector& structmoment();
             //- Return last applied deformation
             const vector& displacement();
             //- Return stiffness vector from element
@@ -428,6 +432,7 @@ public:
             
             //Set structural force
             void setStructForce(vector Structforce);
+            void setStructMoment(vector Structmoment);
             
             void setDisplacement(vector Displacement);
             
