@@ -250,6 +250,8 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
         label elementProfileIndex = i*elementProfiles_.size()/nElements_;
         word profileName = elementProfiles_[elementProfileIndex];
         vector position;
+        vector P1;
+        vector P2;
         scalar chordLength;
         vector chordDirection;
         vector chordRefDirection;
@@ -273,6 +275,11 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
         position = point1
                  + segment/nElementsPerSegment*pointIndex
                  + segment/nElementsPerSegment/2;
+        P1 = point1
+                 + segment/nElementsPerSegment*pointIndex;
+        P2 = point1
+                 + segment/nElementsPerSegment*pointIndex
+                 + segment/nElementsPerSegment;
 
 		//Linearly interpolate List element by element
 		//Include dimension check?
@@ -366,8 +373,8 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
         // Create a dictionary for this actuatorFlexibleLineElement
         dictionary dict;
         dict.add("position", position);
-        dict.add("P1", point1);
-        dict.add("P2", point2);
+        dict.add("P1", P1);
+        dict.add("P2", P2);
         dictionary profileDataDict = profileData_.subDict(profileName);
         dict.add("profileData", profileDataDict);
         dict.add("profileName", profileName);
@@ -565,18 +572,6 @@ void Foam::fv::actuatorFlexibleLineSource::harmonicPitching()
     }
 }
 
-scalar Foam::fv::actuatorFlexibleLineSource::Cantileverdeflection(scalar x, scalar l, scalar F, scalar EI)
-{
-			scalar chordflexcontrib =0.;
-		    
-			chordflexcontrib=F*pow((l-x),3)/(6*EI)*(2-3*(l-x)/l+pow((l-x),3)/pow(l,2));
-			
-			if (x>l)
-			{
-				chordflexcontrib+=(x-l)*(F*pow(l,2)/(2*EI));
-			}
-	return chordflexcontrib;
-	}
 
 void Foam::fv::actuatorFlexibleLineSource::evaluateDeformation()
 {
@@ -880,22 +875,6 @@ void Foam::fv::actuatorFlexibleLineSource::rotate
     }
 }
 
-Foam::scalar Foam::fv::actuatorFlexibleLineSource::foeppl
-(
-    scalar x,
-    scalar pos,
-    scalar exp
-)
-{
-if (x>pos)
-	{
-	return	0;
-	}
-	else
-	{
-	return	pow(x-pos,exp);
-	}
-}
 
 void Foam::fv::actuatorFlexibleLineSource::pitch(scalar radians)
 {
