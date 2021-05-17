@@ -1207,8 +1207,8 @@ Foam::vector Foam::fv::actuatorBernoulliLineElement::moment(vector point)
 const Foam::vector Foam::fv::actuatorBernoulliLineElement::pitchingMoment()
 {
     //If chordmount differs from 0.25 this creates a pitching moment even if CM=0
-	return (forceVector_^(((chordMount_-0.25)*chordLength_)*chordDirection_))
-            +0.5*chordLength_*chordLength_*spanLength_
+	//return (forceVector_^(((chordMount_-0.25)*chordLength_)*chordDirection_))
+      return      0.5*chordLength_*chordLength_*spanLength_
                           * momentCoefficient_*magSqr(relativeVelocity_)
                           * spanDirection_;
                           
