@@ -721,19 +721,19 @@ FEAsects[2*i+1]=elements_[i].FEAsects();//Section data A        Iz       Iy     
 }	
 //*////////////////////////////////////////////////////////////////////////		
 //Create FA and apply returned discplacement
-Info<< "Input for Frame Analysis: "<< endl;
-Info<< "FEAnodes: "<<FEAnodes<< endl;
+//Info<< "Input for Frame Analysis: "<< endl;
+//Info<< "FEAnodes: "<<FEAnodes<< endl;
 //Info<< "FEAelems: "<<FEAelems<< endl;
 //Info<< "FEArestraints: "<<FEArestraints<< endl;
 //Info<< "FEAmats: "<<FEAmats<< endl;
 //Info<< "FEAsects: "<<FEAsects<< endl;
-Info<< "FEAloads: "<<FEAloads<< endl;
+//Info<< "FEAloads: "<<FEAloads<< endl;
 //Info<< "FEAprescribed: "<<FEAprescribed<< endl;
 
 
 //Execute FEA simulation
 FrameAnalysis FA(FEAnodes,FEAelems,FEArestraints, FEAmats,FEAsects,FEAloads,FEAprescribed);
-Info<< "Deformation from FEA Analysis "<<FA.nodedispList()<< endl;
+//Info<< "Deformation from FEA Analysis "<<FA.nodedispList()<< endl;
 
 //Ugly data transfer, needs cleaning and proper access to FA data
 List<List<scalar>> FEADeformation=FA.nodedispList();

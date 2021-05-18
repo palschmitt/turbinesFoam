@@ -309,10 +309,10 @@ scalar L3=pow(L_,3);
         r11=0;
         r12=Cy_;
         r13=0;
-        r21=-Cy_*cos(alpha_);
+        r21=-Cy_*sin(alpha_);
         r22=0;
-        r23=sin(alpha_);
-        r31=Cy_*sin(alpha_);
+        r23=cos(alpha_);
+        r31=Cy_*cos(alpha_);
         r32=0;
         r33=cos(alpha_);
 	}
