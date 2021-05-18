@@ -72,7 +72,7 @@ class FrameAnalysis{
 		arma::Mat<double> A;
 
 		arma::Mat<double> K_,Ke_, Kff_, Kfr_, Krf_, Krr_;
-		arma::Mat<double> Ff_, Fr_, deff_, defr_,nodedisp_;
+		arma::Mat<double> Ff_, Fr_, deff_, defr_,nodedisp_,Felems_;
 
 		double A_               ;
         double Cx_              ;
@@ -165,6 +165,10 @@ public:
 		const arma::Mat<double>& nodedisp();
 		//Return node diplacement as list
 		const Foam::List<Foam::List<Foam::scalar>> nodedispList();
+
+		const arma::Mat<double>& Felems();
+		//Return element forces normal? & shear & bending moment
+		const Foam::List<Foam::List<Foam::scalar>> FelemsList();
         // Check
 
         // Edit
@@ -173,6 +177,8 @@ public:
 		void beam1();
         //Create Stiffness matrix for current element
         void elemstiff();
+        //Create Stiffness matrix for current element
+        void elemstiffforce();
         //Assemble system Matrix
         void assem();
         //Reorder to consider restraints
@@ -185,6 +191,8 @@ public:
         void predisp();
         //Evaluate nodal displacement
         void nodaldisp();
+        //Evaluate nodal displacement
+        void recoverforces();
         
         
         //Create Double Matrix from nested OpenFOAM List 

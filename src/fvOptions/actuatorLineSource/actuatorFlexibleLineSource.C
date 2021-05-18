@@ -737,6 +737,7 @@ FrameAnalysis FA(FEAnodes,FEAelems,FEArestraints, FEAmats,FEAsects,FEAloads,FEAp
 
 //Ugly data transfer, needs cleaning and proper access to FA data
 List<List<scalar>> FEADeformation=FA.nodedispList();
+List<List<scalar>> FEAinternalforces=FA.FelemsList();
 
 //Create Vector List of new nodepositions
 List<vector> NewFEANodepositions;
@@ -757,6 +758,10 @@ elements_[i].setP1(NewFEANodepositions[2*i]);
 elements_[i].setPosition(NewFEANodepositions[2*i+1]);
 elements_[i].setP2(NewFEANodepositions[2*i+2]);
 elements_[i].setDisplacement(vector(FEADeformation[2*i+1][0],FEADeformation[2*i+1][1],FEADeformation[2*i+1][2])+elements_[i].displacement());
+//Save FEA forces and Moments from P1
+elements_[i].setFEAforce(vector(FEAinternalforces[2*i+1][0],FEAinternalforces[2*i+1][1],FEAinternalforces[2*i+1][2]));
+elements_[i].setFEAmoment(vector(FEAinternalforces[2*i+1][6],FEAinternalforces[2*i+1][7],FEAinternalforces[2*i+1][8]));
+
 
 //Update ALelement  spandirection and length, ugly,  could be update function in element!
 vector spanLength=elements_[i].P1()-elements_[i].P2();
@@ -1139,10 +1144,18 @@ void Foam::fv::actuatorFlexibleLineSource::writeVTK()
     // Write Points
     vtkFilePtr_()
         << "POINTS "<<elements_.size()<<" double"<< nl;
+        vector ePosition (elements_[0].P1());
+        vtkFilePtr_()
+                << ePosition[0]
+                << " "
+                << ePosition[1]
+                << " "
+                << ePosition[2]
+                << nl;
 
         forAll(elements_, i)
         {
-            vector ePosition (elements_[i].position());
+            vector ePosition (elements_[i].P2());
             vtkFilePtr_()
                 << ePosition[0]
                 << " "
@@ -1152,12 +1165,13 @@ void Foam::fv::actuatorFlexibleLineSource::writeVTK()
                 << nl;
         }
 
+        
 
     // Write lines connecting nodes
     vtkFilePtr_()<< "LINES 1 "<<elements_.size()+1<< nl;
     vtkFilePtr_()<<elements_.size()<<" ";
 
-    for (int i = 0; i<elements_.size();i++)
+    for (int i = 0; i<elements_.size()+1;i++)
     {
         vtkFilePtr_()<<i<<" ";
     }
@@ -1167,7 +1181,7 @@ void Foam::fv::actuatorFlexibleLineSource::writeVTK()
     // Tell VTK there is element data next
     vtkFilePtr_()
         << nl
-        << "POINT_DATA "<<elements_.size()<<nl;
+        << "ELEMENT_DATA "<<elements_.size()<<nl;
 
     // Write element velocity
     vtkFilePtr_()
@@ -1202,6 +1216,7 @@ void Foam::fv::actuatorFlexibleLineSource::writeVTK()
                 << eForce[2]
                 << nl;
         }
+
     // Write element Displacement
     vtkFilePtr_()
         << "VECTORS displacement double "<<nl;

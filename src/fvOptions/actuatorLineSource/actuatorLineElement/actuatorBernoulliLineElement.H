@@ -125,8 +125,12 @@ protected:
         vector structforceVector_;
         //- Structural moment on element -- 
         vector structmomentVector_;
-        //Last applied displacement from FEA
+        //Total applied displacement from FEA
         vector displacement_;
+        //Internal (shear) force from FEA
+        vector FEAforce_;
+        //Internal (bending) moment from FEA
+        vector FEAmoment_;
         //- Structural stiffness of element 
         List<scalar> FEAmaterial_;// E  Poisson
         List<scalar> FEAsects_;//Section data A        Iz       Iy          J        alpha
@@ -320,6 +324,10 @@ public:
             const vector& P1();
             //- Return the element P2
             const vector& P2();
+            //- Return the FEAforce 
+            const vector& FEAforce();
+            //- Return the FEAmoment 
+            const vector& FEAmoment();
             
             //- Return the element angular velocity
             const scalar& omega();
@@ -429,6 +437,10 @@ public:
             void setP1(vector P1);
             //- Set velocity of element
             void setP2(vector P2);
+            //- Set FAEforce of element
+            void setFEAforce(vector f);
+            //- Set FAEmoment of element
+            void setFEAmoment(vector m);
             
             //Set structural force
             void setStructForce(vector Structforce);

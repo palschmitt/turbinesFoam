@@ -613,6 +613,14 @@ const Foam::vector& Foam::fv::actuatorBernoulliLineElement::P2()
 {
     return P2_;
 }
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::FEAforce()
+{
+    return FEAforce_;
+}
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::FEAmoment()
+{
+    return FEAmoment_;
+}
 const Foam::scalar& Foam::fv::actuatorBernoulliLineElement::omega()
 {
     return omega_;
@@ -1036,6 +1044,24 @@ void Foam::fv::actuatorBernoulliLineElement::setP2(vector P2)
             << P2_ << " to " << P2 << endl << endl;
     }
     P2_ = P2;
+}
+void Foam::fv::actuatorBernoulliLineElement::setFEAforce(vector f)
+{
+    if (debug)
+    {
+        Info<< "Changing FEAforce of " << name_ << " from "
+            << FEAforce_ << " to " << f << endl << endl;
+    }
+    FEAforce_ = f;
+}
+void Foam::fv::actuatorBernoulliLineElement::setFEAmoment(vector f)
+{
+    if (debug)
+    {
+        Info<< "Changing FEAforce of " << name_ << " from "
+            << FEAmoment_<< " to " << f << endl << endl;
+    }
+    FEAmoment_ = f;
 }
 void Foam::fv::actuatorBernoulliLineElement::setStructForce(vector Structforce)
 {

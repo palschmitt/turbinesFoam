@@ -158,6 +158,15 @@ const Foam::List<Foam::List<Foam::scalar>> Foam::FrameAnalysis::nodedispList()
 {
 	return Mat2List(nodedisp_);
 	}
+const arma::Mat<double>&  Foam::FrameAnalysis::Felems()
+{
+	return Felems_;
+	}
+	
+const Foam::List<Foam::List<Foam::scalar>> Foam::FrameAnalysis::FelemsList()
+{
+	return Mat2List(Felems_);
+	}
 	
 void Foam::FrameAnalysis::beam1()
 {
@@ -334,7 +343,87 @@ scalar L3=pow(L_,3);
     //std::cout <<" Ke_ "<<Ke_ <<endl;
 	}
 
+void Foam::FrameAnalysis::elemstiffforce()
+{
+	//Ke=zeros(nnode*ndof); 
+	
+	// A = { {1, 3, 5},
+   //       {2, 4, 6} };
+scalar L2=pow(L_,2);
+scalar L3=pow(L_,3);
 
+//Make E,A, L,,Iz...,Cx.. function paramaters and remove from global	
+    Ke_={{E_*A_/L_,0,0,0,0,0,-E_*A_/L_,0,0,0,0,0},
+        {0,12*E_*Iz_/L3,0,0,0,6*E_*Iz_/L2,0,-12*E_*Iz_/L3,0,0,0,6*E_*Iz_/L2},
+        {0,0,12*E_*Iy_/L3,0,-6*E_*Iy_/L2,0,0,0,-12*E_*Iy_/L3,0,-6*E_*Iy_/L2,0},
+        {0,0,0,J_*G_/L_,0,0,0,0,0,-J_*G_/L_,0,0},
+        {0,0,-6*E_*Iy_/L2,0,4*E_*Iy_/L_,0,0,0,6*E_*Iy_/L2,0,2*E_*Iy_/L_,0},
+        {0,6*E_*Iz_/L2,0,0,0,4*E_*Iz_/L_,0,-6*E_*Iz_/L2,0,0,0,2*E_*Iz_/L_},
+        {-E_*A_/L_,0,0,0,0,0,E_*A_/L_,0,0,0,0,0},
+        {0,-12*E_*Iz_/L3,0,0,0,-6*E_*Iz_/L2,0,12*E_*Iz_/L3,0,0,0,-6*E_*Iz_/L2},
+        {0,0,-12*E_*Iy_/L3,0,6*E_*Iy_/L2,0,0,0,12*E_*Iy_/L3,0,6*E_*Iy_/L2,0},
+        {0,0,0,-J_*G_/L_,0,0,0,0,0,J_*G_/L_,0,0},
+        {0,0,-6*E_*Iy_/L2,0,2*E_*Iy_/L_,0,0,0,6*E_*Iy_/L2,0,4*E_*Iy_/L_,0},
+        {0,6*E_*Iz_/L2,0,0,0,2*E_*Iz_/L_,0,-6*E_*Iz_/L2,0,0,0,4*E_*Iz_/L_}};
+    
+    
+    
+    arma::Mat<double> RotMat;
+    RotMat.zeros(nnode_*ndof_, nnode_*ndof_);
+    alpha_=degToRad(alpha_);
+    
+    scalar r11;
+    scalar r12;
+    scalar r13;
+    scalar r21;
+    scalar r22;
+    scalar r23;
+    scalar r31;
+    scalar r32;
+    scalar r33;
+    
+    
+    if (!vert_)
+    {
+       r11=Cx_;
+       r12=Cy_;
+       r13=Cz_;
+       r21=(-dot(dot(Cx_,Cy_),cos(alpha_))-dot(Cz_,sin(alpha_)))/Cxz_;
+       r22=dot(Cxz_,cos(alpha_));
+       r23=(-dot(dot(Cy_,Cz_),cos(alpha_))+dot(Cx_,sin(alpha_)))/Cxz_;
+       r31=(dot(dot(Cx_,Cy_),sin(alpha_))-dot(Cz_,cos(alpha_)))/Cxz_;
+       r32=dot(-Cxz_,sin(alpha_));
+       r33=(Cy_*Cz_*sin(alpha_)+Cx_*cos(alpha_))/Cxz_;
+   }
+    else
+    {
+        r11=0;
+        r12=Cy_;
+        r13=0;
+        r21=-Cy_*sin(alpha_);
+        r22=0;
+        r23=cos(alpha_);
+        r31=Cy_*cos(alpha_);
+        r32=0;
+        r33=cos(alpha_);
+	}
+    
+    RotMat={{r11,r12,r13,0,0,0,0,0,0,0,0,0},
+       {r21,r22,r23,0,0,0,0,0,0,0,0,0},
+       {r31,r32,r33,0,0,0,0,0,0,0,0,0},
+       {0,0,0,r11,r12,r13,0,0,0,0,0,0},
+       {0,0,0,r21,r22,r23,0,0,0,0,0,0},
+       {0,0,0,r31,r32,r33,0,0,0,0,0,0},
+       {0,0,0,0,0,0,r11,r12,r13,0,0,0},
+       {0,0,0,0,0,0,r21,r22,r23,0,0,0},
+       {0,0,0,0,0,0,r31,r32,r33,0,0,0},
+       {0,0,0,0,0,0,0,0,0,r11,r12,r13},
+       {0,0,0,0,0,0,0,0,0,r21,r22,r23}, 
+       {0,0,0,0,0,0,0,0,0,r31,r32,r33}};
+   
+    Ke_=Ke_*RotMat;
+    //std::cout <<" Ke_ "<<Ke_ <<endl;
+	}
 void Foam::FrameAnalysis::assem()
 {
 	scalar ipos,ipose,jpos,jpose;
@@ -502,6 +591,74 @@ void Foam::FrameAnalysis::nodaldisp()
     //std::cout << "nodedisp_ in FEA: "<< nodedisp_ <<endl;
 
 	}
+
+void Foam::FrameAnalysis::recoverforces()
+{
+    //TODO: initilise Elementforce matrix, 
+    //Remove double evaluationg of node displacement?
+//Felems_
+arma::Mat<double>  def(ndof_*2,1);
+Felems_.set_size(ndof_*2,nelems_);
+  for(ielem_=0; ielem_ < nelems_;ielem_++)
+  {
+    E_=mats_(ielem_,0);
+    Poi_=mats_(ielem_,1);
+    G_=E_/(2*(1+Poi_));
+    A_=sects_(ielem_,0);
+    Iy_=sects_(ielem_,1);
+    Iz_=sects_(ielem_,2);
+    J_=sects_(ielem_,3);
+    alpha_=sects_(ielem_,4);
+    //Check for nicer way of doing this
+    elnodes_.zeros(2,1) ;
+    elnodes_(0)=elems_(ielem_,0);
+    elnodes_(1)=elems_(ielem_,1);
+    dx_=nodes_(elnodes_(1),0)-nodes_(elnodes_(0),0);
+    dy_=nodes_(elnodes_(1),1)-nodes_(elnodes_(0),1);
+    dz_=nodes_(elnodes_(1),2)-nodes_(elnodes_(0),2);   
+    arma::vec Lv = {dx_, dy_, dz_};
+    L_=arma::norm(Lv);
+    
+    if (fabs(dx_)<SMALL)
+    Cx_=0.;
+		else
+    Cx_=dx_/L_;
+    
+     if (fabs(dy_)<SMALL)
+    Cy_=0.;
+    		else
+    Cy_=dy_/L_;
+    
+     if (fabs(dz_)<SMALL)
+    Cz_=0.;
+    		else
+    Cz_=dz_/L_;
+    
+    arma::vec L2={Cx_, Cz_};
+    
+    Cxz_=arma::norm(L2);
+    vert_=false;
+    if((fabs(dx_)<SMALL) && (fabs(dz_)<SMALL))
+    {
+       vert_=true;
+    }
+    elemstiffforce();
+     
+     //retrive glogal deflections for element
+    for (int inode=0;inode<nnode_;inode++)
+    {
+	for (int idof=0;idof<ndof_;idof++)
+	{
+	    int node=elnodes_(inode);
+	    int offset1=(node-1)*ndof_;
+	    int offset2=(inode-1)*ndof_;
+	    def(offset2+idof)=nodedisp_(offset1+idof);
+	}
+	}
+	Felems_.col(ielem_)=Ke_*def;
+    }
+
+}
 // * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * * //
 
 //void Foam::FrameAnalysis::operator=(const FrameAnalysis& rhs)
