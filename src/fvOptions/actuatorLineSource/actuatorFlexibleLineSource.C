@@ -1144,18 +1144,10 @@ void Foam::fv::actuatorFlexibleLineSource::writeVTK()
     // Write Points
     vtkFilePtr_()
         << "POINTS "<<elements_.size()<<" double"<< nl;
-        vector ePosition (elements_[0].P1());
-        vtkFilePtr_()
-                << ePosition[0]
-                << " "
-                << ePosition[1]
-                << " "
-                << ePosition[2]
-                << nl;
 
         forAll(elements_, i)
         {
-            vector ePosition (elements_[i].P2());
+            vector ePosition (elements_[i].position());
             vtkFilePtr_()
                 << ePosition[0]
                 << " "
@@ -1171,7 +1163,7 @@ void Foam::fv::actuatorFlexibleLineSource::writeVTK()
     vtkFilePtr_()<< "LINES 1 "<<elements_.size()+1<< nl;
     vtkFilePtr_()<<elements_.size()<<" ";
 
-    for (int i = 0; i<elements_.size()+1;i++)
+    for (int i = 0; i<elements_.size();i++)
     {
         vtkFilePtr_()<<i<<" ";
     }
@@ -1181,7 +1173,7 @@ void Foam::fv::actuatorFlexibleLineSource::writeVTK()
     // Tell VTK there is element data next
     vtkFilePtr_()
         << nl
-        << "ELEMENT_DATA "<<elements_.size()<<nl;
+        << "POINT_DATA "<<elements_.size()<<nl;
 
     // Write element velocity
     vtkFilePtr_()
@@ -1232,6 +1224,39 @@ void Foam::fv::actuatorFlexibleLineSource::writeVTK()
                 << eDisp[2]
                 << nl;
         }
+
+
+        //Write element FEAForce
+           vtkFilePtr_()
+        << "VECTORS FEAforce double "<<nl;
+
+        forAll(elements_, i)
+        {
+            vector eDisp (elements_[i].FEAforce());
+            vtkFilePtr_()
+                << eDisp[0]
+                << " "
+                << eDisp[1]
+                << " "
+                << eDisp[2]
+                << nl;
+        } 
+        //Write element FEAMoment
+           vtkFilePtr_()
+        << "VECTORS FEAmoment double "<<nl;
+
+        forAll(elements_, i)
+        {
+            vector eDisp (elements_[i].FEAmoment());
+            vtkFilePtr_()
+                << eDisp[0]
+                << " "
+                << eDisp[1]
+                << " "
+                << eDisp[2]
+                << nl;
+        } 
+        
 
     // Add to the VTK sequence counter
     vtkFileSequence_++;

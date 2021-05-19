@@ -255,17 +255,16 @@ deff_=solve(Kff_,(Ff_-Kfr_*defr_),arma::solve_opts::no_approx);
 // Find reactions
 Fr_=Krf_*deff_+Krr_*defr_;
 
-// Plot deformed shape
+
 nodaldisp();
-//plotdisp(nodes,elems,nodedisp);
+recoverforces();
 	
 	}
 
 void Foam::FrameAnalysis::elemstiff()
 {
-	//Ke=zeros(nnode*ndof); 
-	
-	// A = { {1, 3, 5},
+//Ke=zeros(nnode*ndof); 
+// A = { {1, 3, 5},
    //       {2, 4, 6} };
 scalar L2=pow(L_,2);
 scalar L3=pow(L_,3);
@@ -598,7 +597,7 @@ void Foam::FrameAnalysis::recoverforces()
     //Remove double evaluationg of node displacement?
 //Felems_
 arma::Mat<double>  def(ndof_*2,1);
-Felems_.set_size(ndof_*2,nelems_);
+Felems_.set_size(nelems_,ndof_*2);
   for(ielem_=0; ielem_ < nelems_;ielem_++)
   {
     E_=mats_(ielem_,0);
@@ -650,12 +649,12 @@ Felems_.set_size(ndof_*2,nelems_);
 	for (int idof=0;idof<ndof_;idof++)
 	{
 	    int node=elnodes_(inode);
-	    int offset1=(node-1)*ndof_;
-	    int offset2=(inode-1)*ndof_;
+	    int offset1=(node)*ndof_;
+	    int offset2=(inode)*ndof_;
 	    def(offset2+idof)=nodedisp_(offset1+idof);
 	}
 	}
-	Felems_.col(ielem_)=Ke_*def;
+	Felems_.row(ielem_)=trans(Ke_*def);
     }
 
 }
