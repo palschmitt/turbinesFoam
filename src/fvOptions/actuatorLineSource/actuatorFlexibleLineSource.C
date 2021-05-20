@@ -1208,10 +1208,12 @@ void Foam::fv::actuatorFlexibleLineSource::writeVTK()
                 << eForce[2]
                 << nl;
         }
+        
+            vtkFilePtr_() << endl;
 
     // Write element Deformation
     vtkFilePtr_()
-        << "VECTORS displacement double "<<nl;
+        << "VECTORS Deformation double "<<nl;
 
         forAll(elements_, i)
         {
@@ -1224,6 +1226,8 @@ void Foam::fv::actuatorFlexibleLineSource::writeVTK()
                 << eDisp[2]
                 << nl;
         }
+        
+            vtkFilePtr_() << endl;
 
 
         //Write element FEAForce
@@ -1241,6 +1245,9 @@ void Foam::fv::actuatorFlexibleLineSource::writeVTK()
                 << eDisp[2]
                 << nl;
         } 
+        
+        
+        vtkFilePtr_() << endl;
         //Write element FEAMoment
            vtkFilePtr_()
         << "VECTORS FEAmoment double "<<nl;
@@ -1256,7 +1263,7 @@ void Foam::fv::actuatorFlexibleLineSource::writeVTK()
                 << eDisp[2]
                 << nl;
         } 
-        
+        vtkFilePtr_() << endl;
 
     // Add to the VTK sequence counter
     vtkFileSequence_++;

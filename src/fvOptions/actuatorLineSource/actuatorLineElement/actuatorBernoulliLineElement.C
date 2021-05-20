@@ -525,6 +525,7 @@ Foam::fv::actuatorBernoulliLineElement::actuatorBernoulliLineElement
     velocity_(vector::zero),
     forceVector_(vector::zero),
     structforceVector_(vector::zero),
+    deformation_(vector::zero),
     relativeVelocity_(vector::zero),
     relativeVelocityGeom_(vector::zero),
     angleOfAttack_(0.0),
