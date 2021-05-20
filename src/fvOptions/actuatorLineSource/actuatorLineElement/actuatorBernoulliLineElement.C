@@ -974,15 +974,15 @@ void Foam::fv::actuatorBernoulliLineElement::rotate
     // Rotate the span and chord vectors of the element
     chordDirection_ = RM & chordDirection_;
     spanDirection_ = RM & spanDirection_;
-    displacement_ = RM & displacement_;
-    
+    deformation_ = RM & deformation_;
+    structforceVector_ = RM & structforceVector_;
+    structmomentVector_= RM & structmomentVector_;    
     // Rotate the element's velocity vector if specified
     if (rotateVelocity)
     {
         velocity_ = RM & velocity_;
         chordRefDirection_ = RM & chordRefDirection_;
-        structforceVector_ = RM & structforceVector_;
-        structmomentVector_= RM & structmomentVector_;
+
     }
 
     if (debug)
@@ -1081,14 +1081,14 @@ void Foam::fv::actuatorBernoulliLineElement::setStructMoment(vector Structmoment
     }
     structmomentVector_ = Structmoment;
 }
-void Foam::fv::actuatorBernoulliLineElement::setDisplacement(vector Displacement)
+void Foam::fv::actuatorBernoulliLineElement::setDeformation(vector Deformation)
 {
     if (debug)
     {
-        Info<< "Changing Displacement of " << name_ << " from "
-            << displacement_ << " to " << Displacement << endl << endl;
+        Info<< "Changing Deformation of " << name_ << " from "
+            << deformation_ << " to " << Deformation << endl << endl;
     }
-    displacement_ = Displacement;
+    deformation_ = Deformation;
 }
 
 
@@ -1203,9 +1203,9 @@ const Foam::vector& Foam::fv::actuatorBernoulliLineElement::structmoment()
 {
     return structmomentVector_;
 }
-const Foam::vector& Foam::fv::actuatorBernoulliLineElement::displacement()
+const Foam::vector& Foam::fv::actuatorBernoulliLineElement::deformation()
 {
-    return displacement_;
+    return deformation_;
 }
 const Foam::List<int>& Foam::fv::actuatorBernoulliLineElement::FEArestraints()
 {

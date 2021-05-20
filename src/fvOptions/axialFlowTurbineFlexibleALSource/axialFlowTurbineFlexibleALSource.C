@@ -162,8 +162,8 @@ void Foam::fv::axialFlowTurbineFlexibleALSource::createBlades()
             // Move along radial direction
             point += radius*radialDirection_;
             // Move along chord according to chordMount
-            scalar chordDisplacement = (chordMount - 0.25)*chordLength;
-            point -= chordDisplacement*azimuthalDirection_;
+            scalar chordDeformation = (chordMount - 0.25)*chordLength;
+            point -= chordDeformation*azimuthalDirection_;
             // Set initial velocity of quarter chord
             scalar radiusCorr = sqrt(magSqr((chordMount - 0.25)*chordLength)
                                      + magSqr(radius));

@@ -757,7 +757,7 @@ forAll(elements_,i)
 elements_[i].setP1(NewFEANodepositions[2*i]);
 elements_[i].setPosition(NewFEANodepositions[2*i+1]);
 elements_[i].setP2(NewFEANodepositions[2*i+2]);
-elements_[i].setDisplacement(vector(FEADeformation[2*i+1][0],FEADeformation[2*i+1][1],FEADeformation[2*i+1][2])+elements_[i].displacement());
+elements_[i].setDeformation(vector(FEADeformation[2*i+1][0],FEADeformation[2*i+1][1],FEADeformation[2*i+1][2])+elements_[i].deformation());
 //Save FEA forces and Moments from P1
 elements_[i].setFEAforce(vector(FEAinternalforces[2*i+1][0],FEAinternalforces[2*i+1][1],FEAinternalforces[2*i+1][2]));
 elements_[i].setFEAmoment(vector(FEAinternalforces[2*i+1][6],FEAinternalforces[2*i+1][7],FEAinternalforces[2*i+1][8]));
@@ -1209,13 +1209,13 @@ void Foam::fv::actuatorFlexibleLineSource::writeVTK()
                 << nl;
         }
 
-    // Write element Displacement
+    // Write element Deformation
     vtkFilePtr_()
         << "VECTORS displacement double "<<nl;
 
         forAll(elements_, i)
         {
-            vector eDisp (elements_[i].displacement());
+            vector eDisp (elements_[i].deformation());
             vtkFilePtr_()
                 << eDisp[0]
                 << " "

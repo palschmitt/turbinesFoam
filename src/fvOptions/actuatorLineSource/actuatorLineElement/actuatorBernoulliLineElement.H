@@ -126,7 +126,7 @@ protected:
         //- Structural moment on element -- 
         vector structmomentVector_;
         //Total applied displacement from FEA
-        vector displacement_;
+        vector deformation_;
         //Internal (shear) force from FEA
         vector FEAforce_;
         //Internal (bending) moment from FEA
@@ -340,7 +340,7 @@ public:
             //- Return structural moment vector from element
             const vector& structmoment();
             //- Return last applied deformation
-            const vector& displacement();
+            const vector& deformation();
             //- Return stiffness vector from element
             const List<scalar>& FEAsects();
             const List<scalar>& FEAmaterial();
@@ -446,7 +446,7 @@ public:
             void setStructForce(vector Structforce);
             void setStructMoment(vector Structmoment);
             
-            void setDisplacement(vector Displacement);
+            void setDeformation(vector Deformation);
             
             void setFEASects(List<scalar> FEAsects);            
             void setFEAMaterial(List<scalar> FEAmaterial);            
