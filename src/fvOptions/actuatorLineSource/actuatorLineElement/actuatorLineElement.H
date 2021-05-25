@@ -296,6 +296,8 @@ public:
 
             //- Return the element chord length
             const scalar& chordLength() const;
+            //- Return the element chord direction
+            const vector& chordDirection() const;
 
             //- Return the element span length
             const scalar& spanLength();

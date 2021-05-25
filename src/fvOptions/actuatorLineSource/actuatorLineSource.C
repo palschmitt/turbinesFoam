@@ -937,6 +937,23 @@ void Foam::fv::actuatorLineSource::writeVTK()
 
     vtkFilePtr_() << endl;
 
+        //Write element chordlength
+           vtkFilePtr_()
+        << "VECTORS chord double "<<nl;
+
+        forAll(elements_, i)
+        {
+            vector eDisp (elements_[i].chordLength()*elements_[i].chordDirection());
+            vtkFilePtr_()
+                << eDisp[0]
+                << " "
+                << eDisp[1]
+                << " "
+                << eDisp[2]
+                << nl;
+        } 
+        vtkFilePtr_() << endl;
+
     // Add to the VTK sequence counter
     vtkFileSequence_++;
 }

@@ -568,6 +568,10 @@ const Foam::scalar& Foam::fv::actuatorLineElement::chordLength() const
     return chordLength_;
 }
 
+const Foam::vector& Foam::fv::actuatorLineElement::chordDirection() const
+{
+    return chordDirection_;
+}
 
 const Foam::scalar& Foam::fv::actuatorLineElement::spanLength()
 {
