@@ -12,45 +12,12 @@ cd ${0%/*} || exit 1    # run from this directory
 # Source tutorial run functions
 . $WM_PROJECT_DIR/bin/tools/RunFunctions
 
-if [ "$1" = "" ]
-    then
-    D="3D"
-else
-    D=$1
-fi
-
-if [ "$1" = "3D" ]
-    then
-    d="-d"
-else
-    d=""
-fi
 
 # Copy initial conditions
 cp -rf 0.org 0
 
-runApplication blockMesh -dict system/blockMeshDict-$D
+runApplication blockMesh -dict system/blockMeshDict
 runApplication snappyHexMesh -overwrite
-if [ "$D" = "2D" ]
-    then
-    runApplication extrudeMesh
-fi
 runApplication topoSet
-
-if [ "$3" = "-parallel" ]
-    then
-    #python scripts/set_alpha.py $2 $d
-    if [[ $WM_PROJECT_VERSION == "3."* ]]
-        then
-        nProc=$(getNumberOfProcessors)
-    else
-        nProc=""
-    fi
-    runApplication decomposePar
-    ls -d processor* | xargs -I {} rm -rf ./{}/0
-    ls -d processor* | xargs -I {} cp -r 0.org ./{}/0
-    runParallel pimpleFoam  $nProc
-else
-    #python scripts/set_alpha.py $2 $d
-    runApplication pimpleFoam
-fi
+runApplication decomposePar
+runParallel pimpleFoam  
