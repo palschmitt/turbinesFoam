@@ -8,7 +8,7 @@ Cl=0.8
 c=0.1
 v=1
 nu=1E-6
-rho=1000
+rho=1
 Re=v*c/nu
 %FEA Data
 E=11E9

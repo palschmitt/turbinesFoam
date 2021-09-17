@@ -144,7 +144,9 @@ Foam::FrameAnalysis::New()
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
 Foam::FrameAnalysis::~FrameAnalysis()
-{}
+{
+    //Info<<"Called FrameAnalysis Destructor."<<endl;
+    }
 
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //

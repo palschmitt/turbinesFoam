@@ -694,7 +694,7 @@ void Foam::fv::actuatorLineElement::calculateForce
 {
     scalar pi = Foam::constant::mathematical::pi;
 
-    // Calculate vector normal to chord--span plane
+    // Calculate unit vector normal to chord--span plane
     planformNormal_ = -chordDirection_ ^ spanDirection_;
     planformNormal_ /= mag(planformNormal_);
 
