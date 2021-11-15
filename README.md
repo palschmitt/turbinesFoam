@@ -33,7 +33,20 @@ actuator lines to any compatible solver or turbulence model, e.g.,
 
 Installation
 ------------
-Tested in OF-8 and OF-7
+Tested in OF-8 and OF-7.
+
+Requires the Armadillo library:
+http://arma.sourceforge.net/
+
+Before installing Armadillo, first install OpenBLAS and LAPACK, along with the corresponding development/header files
+     
+Recommended packages to install before installing Armadillo:
+        Fedora & Red Hat: cmake, openblas-devel, lapack-devel, arpack-devel, SuperLU-devel
+        Ubuntu & Debian: cmake, libopenblas-dev, liblapack-dev, libarpack2-dev, libsuperlu-dev
+
+Pre-built Armadillo packages are provided by many Linux-based operating systems: Fedora, Debian, Ubuntu, openSUSE, Arch
+the pre-built packages may not be the latest version; if you're encountering problems, use the official stable version provided here
+
 
 ```bash
 cd $WM_PROJECT_USER_DIR
