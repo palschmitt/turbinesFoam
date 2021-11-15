@@ -569,7 +569,7 @@ Foam::fv::actuatorLineSource::actuatorLineSource
     writePerf_(coeffs_.lookupOrDefault("writePerf", false)),
     writeVTK_(coeffs_.lookupOrDefault("writeVTK", false)),
     vtkFileSequence_(0),
-    vtkFilePtr_(NULL),
+    vtkFilePtr_(),
     lastMotionTime_(mesh.time().value()),
     endEffectsActive_(false)
 {

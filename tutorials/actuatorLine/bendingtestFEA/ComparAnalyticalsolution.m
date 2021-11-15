@@ -53,10 +53,11 @@ deltaphideg=rad2deg(deltaphi)
 torquedisp=asin(deltaphi)
 
 %Equivalent load
-qequi=0.0583452043651*rho/L
+YForcefromLog=0.0424614604391
+qequi=YForcefromLog*rho/L
 Mtequi=qequi/2
 deltaphiequi=Mtequi*1/(Ip*G)
-deltaphidegequi=rad2deg(deltaphiequi)
+
 torquedispequi=asin(deltaphiequi)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
