@@ -1,13 +1,12 @@
-turbinesFoam
+ALFEA
+Actuator Line modelling  extended with Finite Element Analysis
+adapted from turbinesFoam
 ============
 
-[![Build Status](https://travis-ci.org/turbinesFoam/turbinesFoam.svg?branch=master)](https://travis-ci.org/turbinesFoam/turbinesFoam)
+![OpenFOAM 8](https://img.shields.io/badge/OpenFOAM-8-brightgreen.svg)
 ![OpenFOAM 7](https://img.shields.io/badge/OpenFOAM-7-brightgreen.svg)
-![OpenFOAM 6](https://img.shields.io/badge/OpenFOAM-6-brightgreen.svg)
-![OpenFOAM 5.x](https://img.shields.io/badge/OpenFOAM-5.x-brightgreen.svg)
-[![DOI](https://zenodo.org/badge/4234/turbinesFoam/turbinesFoam.svg)](https://zenodo.org/badge/latestdoi/4234/turbinesFoam/turbinesFoam)
 
-turbinesFoam is a library for simulating wind and marine hydrokinetic turbines
+ALFEA adds Finite Element Analysis capabilities to turbinesFoam, a library for simulating wind and marine hydrokinetic turbines
 in OpenFOAM using the actuator line method.
 
 [![](https://cloud.githubusercontent.com/assets/4604869/10141523/f2e3ad9a-65da-11e5-971c-b736abd30c3b.png)](https://www.youtube.com/watch?v=THZvV4R1vow)
@@ -34,6 +33,7 @@ actuator lines to any compatible solver or turbulence model, e.g.,
 
 Installation
 ------------
+Tested in OF-8 and OF-7
 
 ```bash
 cd $WM_PROJECT_USER_DIR
@@ -63,6 +63,13 @@ The latest release of turbinesFoam can be cited via DOI thanks to Zenodo: [![DOI
 
 Acknowledgements
 ----------------
+The Bryden Centre project funded Pa\'l Schmitt and is supported by the European 	Union’s INTERREG VA Programme, managed by the Special EU Programmes Body (SEUPB).
+Computations were performed on the Kelvin-2 HPC system based at QUB, funded by EPSRC grant EP/T022175/1.
+%  
+\section*{DISCLAIMER}
+The views and opinions expressed in this paper do not necessarily reflect those of the European Commission or the Special EU Programmes Body (SEUPB).
+
+
 
 This work was funded through a National Science Foundation CAREER award,
 principal investigator Martin Wosnik ([NSF CBET
