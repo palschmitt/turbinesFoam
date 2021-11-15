@@ -602,7 +602,7 @@ List<scalar> SubList;//Ugly workaround
 List<int> SubiList;//Ugly workaround
 
 //Better set FEA material as material/rho? Or get rhoInf from ObjReg?
-scalar rho=1; //Density missing for incompressible cases? rhoref?
+//scalar rho=1; //Density missing for incompressible cases? rhoref?
 //
 
 vector Position=elements_[0].P1();
