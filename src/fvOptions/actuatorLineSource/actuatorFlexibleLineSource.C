@@ -741,33 +741,19 @@ SubiList.resize(6);
 
 SubiList=elements_[0].FEArestraints();
 FEArestraints[0]=SubiList;
-Info<< "FEA restraints start: "<<FEArestraints[0] <<endl;
-
-
-forAll(elements_, i)
-{
-    Info<<i <<" value" <<elements_[i].FEArestraints()<<endl;
-    }
-    
-    
-forAll(FEArestraints,i)
-{
-    Info<<"nElements: "<<nElements_ <<i <<" value" <<FEArestraints[i]<<endl;
-    }
-
 SubiList=elements_.last().FEArestraints();
 FEArestraints.last()=SubiList;
 
 //*////////////////////////////////////////////////////////////////////////		
 //Create FA and apply returned discplacement
-Info<< "Input for Frame Analysis: "<< endl;
-Info<< "FEAnodes: "<<FEAnodes<< endl;
-Info<< "FEAelems: "<<FEAelems<< endl;
-Info<< "FEArestraints: "<<FEArestraints<< endl;
-Info<< "FEAmats: "<<FEAmats<< endl;
-Info<< "FEAsects: "<<FEAsects<< endl;
-Info<< "FEAloads: "<<FEAloads<< endl;
-Info<< "FEAprescribed: "<<FEAprescribed<< endl;
+//Info<< "Input for Frame Analysis: "<< endl;
+//Info<< "FEAnodes: "<<FEAnodes<< endl;
+//Info<< "FEAelems: "<<FEAelems<< endl;
+//Info<< "FEArestraints: "<<FEArestraints<< endl;
+//Info<< "FEAmats: "<<FEAmats<< endl;
+//Info<< "FEAsects: "<<FEAsects<< endl;
+//Info<< "FEAloads: "<<FEAloads<< endl;
+//Info<< "FEAprescribed: "<<FEAprescribed<< endl;
 
 
 //Execute FEA simulation
@@ -812,8 +798,8 @@ elements_[i].setSpanDirection(spanLength/mag(spanLength));
 
 //Update pitch by projecting center node rotational deformation to spandirection
 //Still requires saving earlier torsiondeformatoin, better save all DoF deformations in one go
-//vector rotation=vector(FEADeformation[2*i+1][3],FEADeformation[2*i+1][4],FEADeformation[2*i+1][5]);
-//elements_[i].pitch(rotation & elements_[i].spanDirection());
+vector rotation=vector(FEADeformation[2*i+1][3],FEADeformation[2*i+1][4],FEADeformation[2*i+1][5]);
+elements_[i].pitch(rotation & elements_[i].spanDirection());
 
 }
 lastMotionTime_ = t;
