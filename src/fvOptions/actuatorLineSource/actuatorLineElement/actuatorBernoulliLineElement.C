@@ -1115,7 +1115,7 @@ void Foam::fv::actuatorBernoulliLineElement::setFEARestraint(List<int> s)
 {
     if (debug)
     {
-        Info<< "Changing Restrained of " << name_ << " from "
+        Info<< "Changing Restraint of " << name_ << " from "
             << FEArestraints_ << " to " << s << endl << endl;
     }
     FEArestraints_ = s;

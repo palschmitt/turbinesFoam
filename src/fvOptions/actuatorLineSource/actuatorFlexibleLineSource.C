@@ -258,7 +258,7 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
         //Need matrix?
         List<scalar> material(2);
         List<scalar> section(5);
-        List<int> restraint(6,0.);
+        List<int> restraint(6,0);
 	
         scalar spanLength = spanLengths[geometrySegmentIndex];
         spanLength /= nElementsPerSegment;
@@ -307,16 +307,25 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
 			}
 			
 		//Include dimension check? 
-		//Do not interpolate restraint! Simply apply first
-		//restraint int
-		if (i==0)
+		//Do not interpolate restraint! Simply apply first or last restraint 
+		if (i==0) 
 			{
-			for (int j=0.; j<6;j++)
+			for (int j=0; j<6;j++)
 			{
-				restraint[j] = FEArestraints[geometrySegmentIndex][j];
+				restraint[j] = int(FEArestraints[geometrySegmentIndex][j]);
+                Info<<"restraint i "<< i << " "<< restraint[j] <<" FEArestraints "<<FEArestraints[geometrySegmentIndex][j] << endl;
 			}						
 			}
-	
+        if (i==(nElements_-1))
+        {
+            for (int j=0; j<6;j++)
+            {
+                restraint[j] = int(FEArestraints[geometrySegmentIndex+1][j]);
+                Info<<"restraint i "<< i << " "<< restraint[j] <<" FEArestraints "<<FEArestraints[geometrySegmentIndex+1][j] << endl;
+                }
+            }
+
+        
         // Linearly interpolate chordLength
         scalar chordLength1 = chordLengths[geometrySegmentIndex];
         scalar chordLength2 = chordLengths[geometrySegmentIndex + 1];
@@ -622,13 +631,11 @@ SubList=0.;
 FEAloads[0]=SubList;//Fluid force
 
 
-//Using restraind defined at first and/or last node, impossible to define restrained in between!
-FEArestraints[0]=elements_[0].FEArestraints();
-FEArestraints[2*nElements_]=elements_[nElements_-1].FEArestraints();
-
+SubList.clear();
 SubList.resize(6);
 SubList=0.;
-FEAprescribed[2*nElements_]=SubList;
+FEAprescribed[0]=SubList;
+
 
 forAll(elements_, i)
 {
@@ -694,16 +701,16 @@ FEAloads[2*i+2]=SubList;
 SubList.clear();
 SubList.resize(6);
 SubList=0.;
-FEAprescribed[2*i]=SubList;//Apply previous deformation?
 FEAprescribed[2*i+1]=SubList;//Apply previous deformation?
+FEAprescribed[2*i+2]=SubList;//Apply previous deformation?
 
 
 
 //Data below per element
 //Element definitions
 SubiList.clear();
-SubiList=0.;
 SubiList.resize(2);
+SubiList=0.;
 SubiList[0]=2*i;
 SubiList[1]=2*i+1;
 FEAelems[2*i]=SubiList;//FEA Element connections are simply Node(N) to Node(N+1);
@@ -718,17 +725,49 @@ FEAmats[2*i+1]=elements_[i].FEAmaterial();// E  Poisson
 FEAsects[2*i]=elements_[i].FEAsects();//Section data A        Iz       Iy          J        alpha
 FEAsects[2*i+1]=elements_[i].FEAsects();//Section data A        Iz       Iy          J        alpha
 //Info <<"e Element Sections " <<elements_[i].FEAsects() <<endl;
+
+//Set restraints to zero on all nodes, first and last set after loop
+SubiList.clear();
+SubiList.resize(6);
+SubiList=0.;
+FEArestraints[2*i]=SubiList;
+FEArestraints[2*i+1]=SubiList;
+
 }	
+//Using restraind defined at first and/or last node, impossible to define restrained in between!
+
+SubiList.clear();
+SubiList.resize(6);
+
+SubiList=elements_[0].FEArestraints();
+FEArestraints[0]=SubiList;
+Info<< "FEA restraints start: "<<FEArestraints[0] <<endl;
+
+
+forAll(elements_, i)
+{
+    Info<<i <<" value" <<elements_[i].FEArestraints()<<endl;
+    }
+    
+    
+forAll(FEArestraints,i)
+{
+    Info<<"nElements: "<<nElements_ <<i <<" value" <<FEArestraints[i]<<endl;
+    }
+
+SubiList=elements_.last().FEArestraints();
+FEArestraints.last()=SubiList;
+
 //*////////////////////////////////////////////////////////////////////////		
 //Create FA and apply returned discplacement
-//Info<< "Input for Frame Analysis: "<< endl;
-//Info<< "FEAnodes: "<<FEAnodes<< endl;
-//Info<< "FEAelems: "<<FEAelems<< endl;
-//Info<< "FEArestraints: "<<FEArestraints<< endl;
-//Info<< "FEAmats: "<<FEAmats<< endl;
-//Info<< "FEAsects: "<<FEAsects<< endl;
-//Info<< "FEAloads: "<<FEAloads<< endl;
-//Info<< "FEAprescribed: "<<FEAprescribed<< endl;
+Info<< "Input for Frame Analysis: "<< endl;
+Info<< "FEAnodes: "<<FEAnodes<< endl;
+Info<< "FEAelems: "<<FEAelems<< endl;
+Info<< "FEArestraints: "<<FEArestraints<< endl;
+Info<< "FEAmats: "<<FEAmats<< endl;
+Info<< "FEAsects: "<<FEAsects<< endl;
+Info<< "FEAloads: "<<FEAloads<< endl;
+Info<< "FEAprescribed: "<<FEAprescribed<< endl;
 
 
 //Execute FEA simulation

@@ -645,7 +645,7 @@ Felems_.set_size(nelems_,ndof_*2);
     }
     elemstiffforce();
      
-     //retrive glogal deflections for element
+     //retrive global deflections for element
     for (int inode=0;inode<nnode_;inode++)
     {
 	for (int idof=0;idof<ndof_;idof++)
