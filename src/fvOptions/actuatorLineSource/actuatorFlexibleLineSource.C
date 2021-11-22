@@ -313,7 +313,7 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
 			for (int j=0; j<6;j++)
 			{
 				restraint[j] = int(FEArestraints[geometrySegmentIndex][j]);
-                Info<<"restraint i "<< i << " "<< restraint[j] <<" FEArestraints "<<FEArestraints[geometrySegmentIndex][j] << endl;
+                //Info<<"restraint i "<< i << " "<< restraint[j] <<" FEArestraints "<<FEArestraints[geometrySegmentIndex][j] << endl;
 			}						
 			}
         if (i==(nElements_-1))
@@ -321,7 +321,7 @@ void Foam::fv::actuatorFlexibleLineSource::createInitialElements()
             for (int j=0; j<6;j++)
             {
                 restraint[j] = int(FEArestraints[geometrySegmentIndex+1][j]);
-                Info<<"restraint i "<< i << " "<< restraint[j] <<" FEArestraints "<<FEArestraints[geometrySegmentIndex+1][j] << endl;
+                //Info<<"restraint i "<< i << " "<< restraint[j] <<" FEArestraints "<<FEArestraints[geometrySegmentIndex+1][j] << endl;
                 }
             }
 
@@ -799,7 +799,7 @@ elements_[i].setSpanDirection(spanLength/mag(spanLength));
 //Update pitch by projecting center node rotational deformation to spandirection
 //Still requires saving earlier torsiondeformatoin, better save all DoF deformations in one go
 vector rotation=vector(FEADeformation[2*i+1][3],FEADeformation[2*i+1][4],FEADeformation[2*i+1][5]);
-elements_[i].pitch(rotation & elements_[i].spanDirection());
+elements_[i].pitch(-rotation & elements_[i].spanDirection());
 
 }
 lastMotionTime_ = t;
@@ -1141,7 +1141,7 @@ void Foam::fv::actuatorFlexibleLineSource::addSup
 
 void Foam::fv::actuatorFlexibleLineSource::writeVTK()
 {
-
+//TODO: Write out both nodes per element and element data at position...
     fileName vtkFileName;
 
     // Pad the integer name for the VTK reader

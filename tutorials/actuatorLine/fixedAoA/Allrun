@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# This script runs the actuator line tutorial. The args are:
+# $1: `2D` or `3D`
+# $2: angle of attack in degrees
+# $3: `-parallel` or nothing
 #
 # If no args are provided, the case will run in 3D, in serial, at 10 degrees
 # angle of attack.
@@ -8,13 +12,13 @@ cd ${0%/*} || exit 1    # run from this directory
 # Source tutorial run functions
 . $WM_PROJECT_DIR/bin/tools/RunFunctions
 
+
 # Copy initial conditions
 cp -rf 0.org 0
 
-runApplication blockMesh
+runApplication blockMesh -dict system/blockMeshDict
 runApplication snappyHexMesh -overwrite
 runApplication topoSet
 runApplication decomposePar
-ls -d processor* | xargs -I {} rm -rf ./{}/0
-ls -d processor* | xargs -I {} cp -r 0.org ./{}/0
 runParallel pimpleFoam  
+touch case.foam
