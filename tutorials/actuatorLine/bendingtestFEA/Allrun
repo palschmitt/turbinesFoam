@@ -17,4 +17,5 @@ runApplication topoSet
 runApplication decomposePar
 ls -d processor* | xargs -I {} rm -rf ./{}/0
 ls -d processor* | xargs -I {} cp -r 0.org ./{}/0
-runParallel pimpleFoam  
+runParallel pimpleFoam 
+touch case.foam

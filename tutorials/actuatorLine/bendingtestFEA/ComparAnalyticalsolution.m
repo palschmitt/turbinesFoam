@@ -3,7 +3,7 @@ close all
 %Plot analytical solution against FEA AL results
 
 %AL Data
-L=1
+L=2
 Cl=0.8
 c=0.1
 v=1
@@ -21,12 +21,15 @@ Ip=0.05E-6
 %Bending
 
 q=v^2/2*Cl*c*rho
+F=q*L
 x=(0:L/100:L);
 defly=q*L^4/(24*E*Iz)*(x.^4/L^4-4*x/L+3);
 deflz=q*L^4/(24*E*Ix)*(x.^4/L^4-4*x/L+3);
 
+qdash=0.0820973241604/L
+deflzdash=qdash*L^4/(24*E*Ix)*(x.^4/L^4-4*x/L+3);
 %Extract simulation data 
-cmd="head -n 55 postProcessing/actuatorFlexibleLines/0/VTK/leftblade_000000000019.vtk | tail -n 50 > nodepos.mat"
+cmd="head -n 75 postProcessing/actuatorFlexibleLines/0/VTK/leftblade_000000000019.vtk | tail -n 70 > nodepos.mat"
 system(cmd);
 res=load("nodepos.mat");
 
@@ -34,35 +37,14 @@ res=load("nodepos.mat");
 figure
 %plot(res(:,3),res(:,1))
 
-plot(res(:,3),res(:,2))
+plot(res(:,3)+1,res(:,2),'+','linewidth',1.5)
 hold on
-plot(x,flip(deflz))
+plot(x,flip(deflz),'linewidth',1.5)
+plot(x,flip(deflzdash),'linewidth',1.5)
 %plot(x,flip(defly))
-legend('AL','Analytical')
+legend('AL','Eq','Eq_{Scaled}','location','northwest')
 ylabel('Deflection [m]')
 xlabel('[m]')
 filename='Bendingtest.png'
 print(filename)
 max(res(:,2))
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%Torsion
-Mt=q/2
-G=E/(2*(1+Poi))
-deltaphi=Mt*1/(Ip*G)
-deltaphideg=rad2deg(deltaphi)
-torquedisp=asin(deltaphi)
-
-%Equivalent load
-YForcefromLog=0.0424614604391
-qequi=YForcefromLog*rho/L
-Mtequi=qequi/2
-deltaphiequi=Mtequi*1/(Ip*G)
-
-torquedispequi=asin(deltaphiequi)
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%Normal force
-A=0.0001
-F=q*L
-Ls=0.99
-deltaL=F*Ls/(E*A)
