@@ -47,7 +47,18 @@ Recommended packages to install before installing Armadillo:
 Pre-built Armadillo packages are provided by many Linux-based operating systems: Fedora, Debian, Ubuntu, openSUSE, Arch
 the pre-built packages may not be the latest version; if you're encountering problems, use the official stable version provided here
 
+If armadillo is not installed in a system wide location then the users will need to specify its location in src/Make/options.
+Some users were also required to manually add Armadillo to the  LD_LIBRARY_PATH. For any armadillo related issues please seek help at
 
+ http://arma.sourceforge.net/
+
+Many warnings during compilation stem from the armadillo library. Users might prefer to add
+ 
+-Wno-old-style-cast
+
+to the file src/Make/options to supress them.
+
+Installation of the actual extended turbinesFoam library should then succeed using the follwoing commands:
 ```bash
 cd $WM_PROJECT_USER_DIR
 git clone https://github.com/turbinesFoam/turbinesFoam.git

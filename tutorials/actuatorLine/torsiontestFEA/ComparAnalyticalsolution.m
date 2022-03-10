@@ -62,12 +62,12 @@ print(filename)
 
 
 figure
-phis=[[deltaphideg; deltaphiequideg; deltaphisimdeg] zeros(3,1) ];
-errors=[zeros(3,1) [(deltaphideg-deltaphisimdeg)/deltaphisimdeg; (deltaphiequideg-deltaphisimdeg)/deltaphisimdeg; 0 ]*100];
+phis=[[ deltaphisimdeg; deltaphideg; deltaphiequideg] zeros(3,1) ];
+errors=[zeros(3,1) [ 0; (deltaphideg-deltaphisimdeg)/deltaphisimdeg; (deltaphiequideg-deltaphisimdeg)/deltaphisimdeg]*100];
 [AX,H1,H2] =plotyy([1:3],phis, [1:3],errors, 'bar', 'bar');
 #set(H1,'FaceColor','r') % a
 #set(H2,'FaceColor','b') % b
-labels = [ 'Eq'; 'Eq_{Sim}'; 'Sim'];
+labels = ['AL'; 'Eq'; 'Eq_{Sim}'; ];
 set(AX, 'XTickLabel', labels);  
 set(AX(1), 'xlim', [0 3.5]);  
 set(AX(2), 'xlim', [0 3.5]);  
