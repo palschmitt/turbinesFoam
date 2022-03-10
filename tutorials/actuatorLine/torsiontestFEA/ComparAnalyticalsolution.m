@@ -50,6 +50,8 @@ deltaphisim=asin((P2(2)-P1(2))/(P2(3)-P1(3)))
 deltaphisimdeg=rad2deg(deltaphisim)
 
 
+
+
 figure
 bar([deltaphideg, deltaphiequideg, deltaphisimdeg])
 ylabel('Angle [deg]')
@@ -58,6 +60,21 @@ set(gca, 'XTickLabel', labels);
 filename='Torsiontest.png'
 print(filename)
 
+
+figure
+phis=[[deltaphideg; deltaphiequideg; deltaphisimdeg] zeros(3,1) ];
+errors=[zeros(3,1) [(deltaphideg-deltaphisimdeg)/deltaphisimdeg; (deltaphiequideg-deltaphisimdeg)/deltaphisimdeg; 0 ]*100];
+[AX,H1,H2] =plotyy([1:3],phis, [1:3],errors, 'bar', 'bar');
+#set(H1,'FaceColor','r') % a
+#set(H2,'FaceColor','b') % b
+labels = [ 'Eq'; 'Eq_{Sim}'; 'Sim'];
+set(AX, 'XTickLabel', labels);  
+set(AX(1), 'xlim', [0 3.5]);  
+set(AX(2), 'xlim', [0 3.5]);  
+ylabel(AX(1), 'Angle [deg]');  
+ylabel(AX(2),  'Percentage  Error [%]');  
+filename='Torsiontesterrors.png'
+print(filename)
 
 figure
 bar([deltaphideg, deltaphiequideg])
