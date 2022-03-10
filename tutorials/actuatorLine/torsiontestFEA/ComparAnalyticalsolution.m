@@ -72,7 +72,7 @@ set(AX, 'XTickLabel', labels);
 set(AX(1), 'xlim', [0 3.5]);  
 set(AX(2), 'xlim', [0 3.5]);  
 ylabel(AX(1), 'Angle [deg]');  
-ylabel(AX(2),  'Percentage  Error [%]');  
+ylabel(AX(2),  'Percentage  Difference [%]');  
 filename='Torsiontesterrors.png'
 print(filename)
 
