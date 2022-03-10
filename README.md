@@ -60,6 +60,21 @@ Usage
 -----
 
 There are tutorials located in `turbinesFoam/tutorials`.
+Each case contains an Allrun and Allclean script. 
+Results can be plotted against analytical solutions using the GNUoctave toolbox and the ComparAnalyticalsolution.m script files.
+
+Test cases for ALFEA:
+
+tutorials/actuatorLine/bendingtestFEA
+ demonstrates bending deformation of a flexible wing 
+
+tutorials/actuatorLine/torsiontestFEA
+ demonstrates torsional deformation of a beam supporting a wing
+
+tutorials/actuatorLine/changeAoA
+ demonstrates change in angle of attack by the bending deformation of the support structure of a wing
+ fixedAoA runs the same case but for a "stiff" support structure for comprison
+
 
 
 Publications

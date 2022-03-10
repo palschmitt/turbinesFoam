@@ -42,7 +42,7 @@ hold on
 plot(x,flip(deflz),'linewidth',1.5)
 plot(x,flip(deflzdash),'linewidth',1.5)
 %plot(x,flip(defly))
-legend('AL','Eq','Eq_{Scaled}','location','northwest')
+legend('AL','Eq','Eq_{Sim}','location','northwest')
 ylabel('Deflection [m]')
 xlabel('[m]')
 filename='Bendingtest.png'

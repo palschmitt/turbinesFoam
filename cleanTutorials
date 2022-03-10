@@ -8,8 +8,32 @@ cd $startDir/tutorials/crossFlowTurbineAL
 cd $startDir/tutorials/axialFlowTurbineAL
 ./Allclean
 
+cd $startDir/tutorials/axialFlowTurbineFlexibleAL/
+./Allclean
+
 cd $startDir/tutorials/actuatorLine/pitching
 ./Allclean
 
 cd $startDir/tutorials/actuatorLine/static
+./Allclean
+
+cd $startDir/tutorials/actuatorLine/bendingtestFEA
+./Allclean
+
+cd $startDir/tutorials/actuatorLine/changeAoA
+./Allclean
+
+cd $startDir/tutorials/actuatorLine/DTCHull
+./Allclean
+
+cd $startDir/tutorials/actuatorLine/fixedAoA
+./Allclean
+
+cd $startDir/tutorials/actuatorLine/normalforceFEA
+./Allclean
+
+cd $startDir/tutorials/actuatorLine/pitching
+./Allclean
+
+cd $startDir/tutorials/actuatorLine/torsiontestFEA
 ./Allclean

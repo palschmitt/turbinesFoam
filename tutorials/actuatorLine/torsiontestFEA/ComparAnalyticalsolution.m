@@ -4,37 +4,62 @@ close all
 
 %AL Data
 L=1
+Ls=0.9
 Cl=0.8
 c=0.1
 v=1
 nu=1E-6
-rho=1000
+rho=1
 Re=v*c/nu
 %FEA Data
 E=11E9
 Iz=7.E-6
 Ix=7.E-6
 A=0.003
-Ip=0.02
-
-
+Ip=0.05E-6
+Poi=0.2
 
 q=v^2/2*Cl*c*rho
-x=(0:L/100:L);
-defly=q*L^4/(24*E*Iz)*(x.^4/L^4-4*x/L+3);
-deflz=q*L^4/(24*E*Ix)*(x.^4/L^4-4*x/L+3);
 
-%Extract simulation data 
-cmd="head -n 55 postProcessing/actuatorFlexibleLines/0/VTK/leftblade_000000000019.vtk | tail -n 50 > nodepos.mat"
-system(cmd);
-res=load("nodepos.mat");
+%Torsion
+F=q*L
+Mt=q*L^2/2
+G=E/(2*(1+Poi))
+deltaphi=Mt*Ls/(Ip*G)
+deltaphideg=rad2deg(deltaphi)
+torquedisp=asin(deltaphi)
+
+%Equivalent load
+YForcefromLog=0.0424614199887
+qequi=YForcefromLog*rho/L
+Mtequi=qequi/2
+deltaphiequi=Mtequi*Ls/(Ip*G)
+deltaphiequideg=rad2deg(Mtequi*Ls/(Ip*G))
+
+torquedispequi=asin(deltaphiequi)
+
+
+%Read simulation results (element positions)
+element0=csvread('postProcessing/actuatorBernoulliLineElements/0/leftblade.element0.csv');
+element59=csvread('postProcessing/actuatorBernoulliLineElements/0/leftblade.element59.csv');
+
+P1=element0(end,3:5);
+P2=element59(end,3:5);
+%Torsion angle is sin of last to first element position
+deltaphisim=asin((P2(2)-P1(2))/(P2(3)-P1(3)))
+deltaphisimdeg=rad2deg(deltaphisim)
 
 
 figure
-%plot(res(:,3),res(:,1))
+bar([deltaphideg, deltaphiequideg, deltaphisimdeg])
+ylabel('Angle [deg]')
+labels = ['Eq'; 'Eq_{Sim}'; 'Sim'];
+set(gca, 'XTickLabel', labels);  
+filename='Torsiontest.png'
+print(filename)
 
-plot(res(:,3),res(:,2))
-hold on
-plot(x,flip(deflz))
-%plot(x,flip(defly))
-legend('ALx','ALy','Analyz')
+
+figure
+bar([deltaphideg, deltaphiequideg])
+ylabel('Moment [Nm]')
+

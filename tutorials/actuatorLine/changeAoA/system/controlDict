@@ -22,7 +22,7 @@ startTime       0;
 
 stopAt          endTime;
 
-endTime         2; // Was 5000
+endTime         3; // Was 5000
 
 deltaT          1;
 
