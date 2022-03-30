@@ -19,6 +19,7 @@ cp -rf 0.org 0
 runApplication blockMesh -dict system/blockMeshDict
 runApplication snappyHexMesh -overwrite
 runApplication topoSet
-runApplication decomposePar
-runParallel pimpleFoam  
+#runApplication decomposePar
+#runParallel pimpleFoam  
+runApplication pimpleFoam  
 touch case.foam
