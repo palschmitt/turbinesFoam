@@ -744,6 +744,7 @@ FEArestraints[0]=SubiList;
 SubiList=elements_.last().FEArestraints();
 FEArestraints.last()=SubiList;
 
+
 //*////////////////////////////////////////////////////////////////////////		
 //Create FA and apply returned discplacement
 //Info<< "Input for Frame Analysis: "<< endl;
