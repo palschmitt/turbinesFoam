@@ -58,14 +58,24 @@ Many warnings during compilation stem from the armadillo library. Users might pr
 
 to the file src/Make/options to supress them.
 
-Installation of the actual extended turbinesFoam library should then succeed using the follwoing commands:
-```bash
+Decompress and unpack the provided archive using the command
+tar xvf turbinesFoam.tgz
+
+or alternatively download the latest version from github:
+
 cd $WM_PROJECT_USER_DIR
 git clone https://github.com/turbinesFoam/turbinesFoam.git
-cd turbinesFoam
-./Allwmake
-```
 
+
+The installation of the code should then succeed by entering the turbinesFoam directory 
+
+cd turbinesFoam
+
+and executing the 
+
+./Allwmake
+
+script.
 
 Usage
 -----
