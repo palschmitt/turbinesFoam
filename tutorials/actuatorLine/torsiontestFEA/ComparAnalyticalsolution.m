@@ -62,8 +62,8 @@ print(filename)
 
 
 figure
-phis=[[ deltaphisimdeg; deltaphideg; deltaphiequideg] zeros(3,1) ];
-errors=[zeros(3,1) [ 0; (deltaphideg-deltaphisimdeg)/deltaphisimdeg; (deltaphiequideg-deltaphisimdeg)/deltaphisimdeg]*100];
+phis=[[ deltaphisimdeg; deltaphideg; deltaphiequideg] zeros(3,1) ]
+errors=[zeros(3,1) [ 0; (deltaphideg-deltaphisimdeg)/deltaphisimdeg; (deltaphiequideg-deltaphisimdeg)/deltaphisimdeg]*100]
 [AX,H1,H2] =plotyy([1:3],phis, [1:3],errors, 'bar', 'bar');
 #set(H1,'FaceColor','r') % a
 #set(H2,'FaceColor','b') % b
