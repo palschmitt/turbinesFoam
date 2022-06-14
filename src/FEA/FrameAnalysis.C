@@ -145,7 +145,7 @@ Foam::FrameAnalysis::New()
 
 Foam::FrameAnalysis::~FrameAnalysis()
 {
-    Info<<"Called FrameAnalysis Destructor."<<endl;
+//    Info<<"Called FrameAnalysis Destructor."<<endl;
     }
 
 
