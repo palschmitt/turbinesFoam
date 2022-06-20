@@ -1027,8 +1027,8 @@ void Foam::fv::actuatorFlexibleLineSource::addSup
         force_ += elements_[i].force();
     }
 
-    Info<< "Force (per unit density) on " << name_ << ": "
-        << endl << force_ << "Magnitude:"<< mag(force_) << endl << endl;
+  //  Info<< "Force (per unit density) on " << name_ << ": "
+  //      << endl << force_ << "Magnitude:"<< mag(force_) << endl << endl;
 
     // Check dimensions on force field and correct if necessary
     if (forceField_.dimensions() != eqn.dimensions()/dimVolume)
