@@ -4,6 +4,7 @@ fvOptions/turbineALSource/turbineALSource.C
 fvOptions/turbineALSource/turbineFALSource.C
 fvOptions/crossFlowTurbineALSource/crossFlowTurbineALSource.C
 fvOptions/axialFlowTurbineALSource/axialFlowTurbineALSource.C
+fvOptions/crossFlowTurbineFlexibleALSource/crossFlowTurbineFlexibleALSource.C
 fvOptions/axialFlowTurbineFlexibleALSource/axialFlowTurbineFlexibleALSource.C
 fvOptions/actuatorLineSource/actuatorLineSource.C
 fvOptions/actuatorLineSource/actuatorFlexibleLineSource.C
