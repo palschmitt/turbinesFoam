@@ -123,7 +123,7 @@ void Foam::fv::crossFlowTurbineFlexibleALSource::createBlades()
             }
 
             // Set sizes for actuatorFlexibleLineSource elementGeometry lists
-            elementGeometry[j].setSize(6);
+            elementGeometry[j].setSize(9);
             elementGeometry[j][0].setSize(3);
             elementGeometry[j][1].setSize(3);
             elementGeometry[j][2].setSize(1);
@@ -185,6 +185,30 @@ void Foam::fv::crossFlowTurbineFlexibleALSource::createBlades()
 
             // Set pitch
             elementGeometry[j][5][0] = pitch;
+                        //Element mats
+            //E
+            elementGeometry[j][6][0] = elementData[j][6];
+            elementGeometry[j][6][1] = elementData[j][7];
+            //elementGeometry[j][6][1] = mu;
+            //A        Iz       Iy          J alpha
+            //Needs rotation?
+            elementGeometry[j][7][0] = elementData[j][8];
+            elementGeometry[j][7][1] = elementData[j][9];
+            elementGeometry[j][7][2] = elementData[j][10];
+            elementGeometry[j][7][3] = elementData[j][11];
+            elementGeometry[j][7][4] = elementData[j][12];
+            //Restraints, fix hub
+            
+            if (j<1)
+            {
+                elementGeometry[j][8] = 1;
+                }
+            else
+            {
+            elementGeometry[j][8] = 0.;
+        }
+            
+            
         }
 
         // Add frontal area to list
@@ -261,7 +285,7 @@ void Foam::fv::crossFlowTurbineFlexibleALSource::createStruts()
     struts_.setSize(nStruts);
     int nElements;
     List<List<scalar> > elementData;
-    word modelType = "actuatorFlexibleLineSource";
+    word modelType = "actuatorLineSource";
     List<word> strutNames = strutsDict_.toc();
 
     forAll(struts_, i)
