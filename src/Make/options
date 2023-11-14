@@ -9,4 +9,6 @@ LIB_LIBS = \
     -lfiniteVolume \
     -lsampling \
     -lmeshTools \
-    -lfvOptions
+    -lfvOptions \
+	-O4 -g
+    
