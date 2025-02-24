@@ -39,7 +39,7 @@ runApplication topoSet
 
 if [ "$3" = "-parallel" ]
     then
-    python scripts/set_alpha.py $2 $d
+    python3 scripts/set_alpha.py $2 $d
     if [[ $WM_PROJECT_VERSION == "3."* ]]
         then
         nProc=$(getNumberOfProcessors)
@@ -52,6 +52,6 @@ if [ "$3" = "-parallel" ]
     runParallel simpleFoam  $nProc
     runApplication reconstructPar
 else
-    python scripts/set_alpha.py $2 $d
+    python3 scripts/set_alpha.py $2 $d
     runApplication simpleFoam
 fi

@@ -18,4 +18,4 @@ fvOptions/actuatorLineSource/actuatorLineElement/dynamicStallModels/LeishmanBedd
 fvOptions/actuatorLineSource/actuatorLineElement/dynamicStallModels/LeishmanBeddoesSD/LeishmanBeddoesSD.C
 fvOptions/actuatorLineSource/actuatorLineElement/profileData/profileData.C
 
-LIB = $(FOAM_USER_LIBBIN)/libturbinesFoam
+LIB = $(FOAM_USER_LIBBIN)/libALFEA
