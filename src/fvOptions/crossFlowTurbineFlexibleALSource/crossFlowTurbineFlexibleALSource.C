@@ -505,7 +505,7 @@ void Foam::fv::crossFlowTurbineFlexibleALSource::createShaft()
         mesh_
     );
 
-    shaft_.set(shaft);
+    shaft_.reset(shaft);
 }
 
 
