@@ -811,14 +811,13 @@ lastMotionTime_ = t;
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::fv::actuatorFlexibleLineSource::actuatorFlexibleLineSource
-(
-    const word& name,
+(   const word& name,
     const word& modelType,
     const dictionary& dict,
     const fvMesh& mesh
 )
-:
-    cellSetOption(name, modelType, dict, mesh),
+:cellSetOption(name,modelType,dict,mesh),
+actuatorLineSource(name, modelType,dict,mesh),
     force_(vector::zero),
     forceField_
     (

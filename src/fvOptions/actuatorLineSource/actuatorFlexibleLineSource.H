@@ -38,9 +38,9 @@ SourceFiles
 #include "List.H"
 #include "dictionary.H"
 #include "vector.H"
+#include "actuatorLineSource.H"
 #include "actuatorBernoulliLineElement.H"
 #include "FrameAnalysis.H"
-#include "cellSetOption.H"
 #include "volFieldsFwd.H"
 #include <iomanip>
 
@@ -56,8 +56,7 @@ namespace fv
 \*---------------------------------------------------------------------------*/
 
 class actuatorFlexibleLineSource
-:
-    public cellSetOption
+: public actuatorLineSource
 {
 
 protected:
