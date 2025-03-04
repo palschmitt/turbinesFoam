@@ -35,6 +35,7 @@ SourceFiles
 #ifndef crossFlowTurbineFlexibleALSource_H
 #define crossFlowTurbineFlexibleALSource_H
 
+#include "crossFlowTurbineALSource.H"
 #include "turbineFALSource.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -50,45 +51,14 @@ namespace fv
 
 class crossFlowTurbineFlexibleALSource
 :
-    public turbineFALSource
+    public turbineFALSource, public crossFlowTurbineALSource
 {
 
 protected:
 
-    // Protected data
-
-        //- Switch for struts
-        bool hasStruts_;
-
-        //- Switch for shaft
-        bool hasShaft_;
-
-        //- List of actuator lines as struts
-        PtrList<actuatorLineSource> struts_;
-
-        //- Actuator line for shaft
-        autoPtr<actuatorLineSource> shaft_;
-
-        //- Strut definitions dictionary
-        dictionary strutsDict_;
-
-        //- Shaft dictionary
-        dictionary shaftDict_;
-
-
-    // Protected Member Functions
 
         //- Create actuator lines for blades
         virtual void createBlades();
-
-        //- Create actuator lines for struts
-        void createStruts();
-
-        //- Create actuator line for shaft
-        void createShaft();
-
-        //- Create the co-ordinate system
-        virtual void createCoordinateSystem();
 
         //- Use turbine base class rotate method
         using turbineFALSource::rotate;
@@ -119,40 +89,7 @@ public:
     virtual ~crossFlowTurbineFlexibleALSource();
 
 
-    // Member Functions
-
-        // Source term addition
-
-            //- Add source term to momentum equation
-            virtual void addSup
-            (
-                fvMatrix<vector>& eqn,
-                const label fieldI
-            );
-
-            //- Add source term to compressible momentum equation
-            virtual void addSup
-            (
-                const volScalarField& rho,
-                fvMatrix<vector>& eqn,
-                const label fieldI
-            );
-
-            //- Add source term to turbulence model equation
-            virtual void addSup
-            (
-                fvMatrix<scalar>& eqn,
-                const label fieldI
-            );
-
-
-        // I-O
-
-            //- Read source dictionary
-            virtual bool read(const dictionary& dict);
-
-            //- Print dictionary values
-            virtual void printCoeffs() const;
+   
 };
 
 

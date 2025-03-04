@@ -31,6 +31,13 @@ actuator lines to any compatible solver or turbulence model, e.g.,
 `simpleFoam`, `pimpleFoam`, `interFoam`, etc.
 
 
+TODO
+-------------------
+-Derive the ALFEA bits from the original code (in progress in cleanup branch)
+-Endeffects for both ends of AL for foils etc.
+-Velocity sampling on radius for turbine simulations
+
+
 Installation
 ------------
 Tested in OF-8 and OF-7.
