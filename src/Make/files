@@ -1,5 +1,6 @@
 interpolations/interpolateUtils.C
 FEA/FrameAnalysis.C
+FEA/CableAnalysis.C
 fvOptions/turbineALSource/turbineALSource.C
 fvOptions/turbineALSource/turbineFALSource.C
 fvOptions/crossFlowTurbineALSource/crossFlowTurbineALSource.C
@@ -8,10 +9,10 @@ fvOptions/crossFlowTurbineFlexibleALSource/crossFlowTurbineFlexibleALSource.C
 fvOptions/axialFlowTurbineFlexibleALSource/axialFlowTurbineFlexibleALSource.C
 fvOptions/actuatorLineSource/actuatorLineSource.C
 fvOptions/actuatorLineSource/actuatorFlexibleLineSource.C
-fvOptions/actuatorLineSource/actuatorcablelinesource.C
+fvOptions/actuatorLineSource/actuatorCableLineSource.C
 fvOptions/actuatorLineSource/actuatorLineElement/actuatorLineElement.C
 fvOptions/actuatorLineSource/actuatorLineElement/actuatorBernoulliLineElement.C
-fvOptions/actuatorLineSource/actuatorLineElement/actuatorcablelinelement.C
+fvOptions/actuatorLineSource/actuatorLineElement/actuatorCableLineElement.C
 fvOptions/actuatorLineSource/actuatorLineElement/addedMassModel/addedMassModel.C
 fvOptions/actuatorLineSource/actuatorLineElement/dynamicStallModels/dynamicStallModel/dynamicStallModel.C
 fvOptions/actuatorLineSource/actuatorLineElement/dynamicStallModels/LeishmanBeddoes/LeishmanBeddoes.C

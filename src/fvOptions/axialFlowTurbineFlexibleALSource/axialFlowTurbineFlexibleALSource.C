@@ -583,6 +583,7 @@ Foam::fv::axialFlowTurbineFlexibleALSource::axialFlowTurbineFlexibleALSource
     const fvMesh& mesh
 )
 :
+ cellSetOption(name, modelType, dict, mesh),  
     turbineFALSource(name, modelType, dict, mesh),
     hasHub_(false),
     hasTower_(false),

@@ -606,15 +606,6 @@ void Foam::fv::actuatorCableLineSource::writeVTK()
         vtkFilePtr_() << elements_[i].tension() << nl;
     vtkFilePtr_() << endl;
 
-    // Span direction
-    vtkFilePtr_() << "VECTORS SpanDirection double" << nl;
-    forAll(elements_, i)
-    {
-        vector s = elements_[i].spanDirection();
-        vtkFilePtr_() << s[0] << " " << s[1] << " " << s[2] << nl;
-    }
-    vtkFilePtr_() << endl;
-
     vtkFileSequence_++;
 }
 

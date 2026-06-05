@@ -11,6 +11,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "crossFlowTurbineFlexibleALSource.H"
+#include "actuatorFlexibleLineSource.H"
 #include "addToRunTimeSelectionTable.H"
 #include "fvMatrices.H"
 #include "geometricOneField.H"
@@ -287,15 +288,13 @@ Foam::fv::crossFlowTurbineFlexibleALSource::crossFlowTurbineFlexibleALSource
     const fvMesh& mesh
 )
 :
-    // cellSetOption is the common virtual base; it must be initialised first
-    // and only once, regardless of how many paths reach it.
+    // cellSetOption is the virtual base at the top of the hierarchy.
+    // As the most-derived class we must initialise it explicitly;
+    // the matching entries in turbineALSource and
+    // crossFlowTurbineALSource MILs are ignored by the compiler once
+    // virtual inheritance is in play.
     cellSetOption(name, modelType, dict, mesh),
     crossFlowTurbineALSource(name, modelType, dict, mesh)
-    // Note: actuatorFlexibleLineSource is NOT a base class here.
-    // Flexible blades are instantiated inside createBlades() as concrete
-    // actuatorFlexibleLineSource objects stored through the inherited
-    // blades_ PtrList<actuatorLineSource>.  This avoids the diamond problem
-    // entirely without requiring virtual inheritance changes in other headers.
 {
     // crossFlowTurbineALSource constructor calls read(), createCoordinateSystem()
     // and createBlades() – but its createBlades() creates rigid blades.

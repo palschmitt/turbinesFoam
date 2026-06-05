@@ -57,7 +57,8 @@ SourceFiles
 #define crossFlowTurbineFlexibleALSource_H
 
 #include "crossFlowTurbineALSource.H"
-#include "actuatorFlexibleLineSource.H"
+// actuatorFlexibleLineSource is used in the .C file only (createBlades)
+// and does not need to be visible here.
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -72,9 +73,10 @@ namespace fv
 
 class crossFlowTurbineFlexibleALSource
 :
-    public crossFlowTurbineALSource   // single-inheritance path; flexible
-                                      // blade objects are created inside
-                                      // blades_ via createBlades() override
+    public crossFlowTurbineALSource
+    // Single inheritance only.  Flexible blade objects are created inside
+    // the inherited blades_ PtrList via the createBlades() override below;
+    // no second base class is needed and no diamond problem can arise.
 {
 
 protected:
