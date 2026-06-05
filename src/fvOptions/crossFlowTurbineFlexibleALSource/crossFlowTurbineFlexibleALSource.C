@@ -6,20 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
 License
-    This file is part of turbinesFoam, which is based on OpenFOAM.
-
-    OpenFOAM is free software: you can redistribute it and/or modify it
-    under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
-    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-    for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
+    This file is part of turbinesFoam, which is based on OpenFOAM.  (GPL v3)
 
 \*---------------------------------------------------------------------------*/
 
@@ -32,7 +19,7 @@ License
 
 using namespace Foam::constant;
 
-// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
@@ -51,230 +38,246 @@ namespace fv
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-
-
-
 void Foam::fv::crossFlowTurbineFlexibleALSource::createBlades()
 {
-    int nBlades = turbineFALSource::nBlades_;
-    turbineFALSource::blades_.setSize(nBlades);
-    int nElements;
-    List<List<scalar> > elementData;
-    List<List<scalar> > profileData;
+    // ---------------------------------------------------------------------
+    // This method mirrors crossFlowTurbineALSource::createBlades() exactly,
+    // except that the concrete element type created is
+    // actuatorFlexibleLineSource instead of actuatorLineSource.
+    //
+    // The blade structural data (material, section, restraints) is read from
+    // three extra columns appended to each elementData row:
+    //   col 6 : [E  Poisson]       – FEA material
+    //   col 7 : [A Iz Iy J alpha]  – FEA cross-section
+    //   col 8 : [r1 r2 r3 r4 r5 r6] – nodal restraints (0/1 per DOF)
+    // ---------------------------------------------------------------------
+
+    int nBlades = nBlades_;
+    blades_.setSize(nBlades);
+
+    // modelType string that matches actuatorFlexibleLineSource's TypeName
     word modelType = "actuatorFlexibleLineSource";
-    List<scalar> frontalAreas(nBlades); // Frontal area from each blade
 
-    forAll(turbineFALSource::blades_, i)
+    List<scalar> frontalAreas(nBlades, 0.0);
+
+    forAll(blades_, i)
     {
-        word bladeName = turbineFALSource::bladeNames_[i];
-        // Create dictionary items for this blade
-        dictionary bladeSubDict = turbineFALSource::bladesDict_.subDict(bladeName);
+        word bladeName = bladeNames_[i];
+        dictionary bladeSubDict = bladesDict_.subDict(bladeName);
+
+        int nElements;
         bladeSubDict.lookup("nElements") >> nElements;
+
+        List<List<scalar>> elementData;
         bladeSubDict.lookup("elementData") >> elementData;
-        scalar azimuthalOffset = bladeSubDict.lookupOrDefault
-        (
-            "azimuthalOffset",
-            0.0
-        );
 
-        bladeSubDict.add("freeStreamVelocity", turbineFALSource::freeStreamVelocity_);
-        bladeSubDict.add("fieldNames", turbineFALSource::coeffs_.lookup("fieldNames"));
-        bladeSubDict.add("profileData", turbineFALSource::profileData_);
+        scalar azimuthalOffset =
+            bladeSubDict.lookupOrDefault("azimuthalOffset", 0.0);
 
-        if (debug)
-        {
-            Info<< "Creating flexible actuator line blade " << bladeName << endl;
-            Info<< "Blade has " << nElements << " elements" << endl;
-            Info<< "Element data:" << endl;
-            Info<< elementData << endl << endl;
-        }
+        bladeSubDict.add("freeStreamVelocity", freeStreamVelocity_);
+        bladeSubDict.add("fieldNames", coeffs_.lookup("fieldNames"));
+        bladeSubDict.add("profileData", profileData_);
 
-        // Convert element data into actuator line element geometry
+        // -- Convert elementData into actuatorFlexibleLineSource geometry --
+        // Each geometry point carries 9 sub-lists (indices 0-8); the first 6
+        // match the standard actuatorLineSource format, the last 3 are the
+        // structural data required by actuatorFlexibleLineSource.
+
         label nGeomPoints = elementData.size();
-        List<List<List<scalar> > > elementGeometry(nGeomPoints);
+        List<List<List<scalar>>> elementGeometry(nGeomPoints);
         List<vector> initialVelocities(nGeomPoints, vector::zero);
-        // Frontal area for this blade
         scalar frontalArea = 0.0;
+
         forAll(elementData, j)
         {
-            // Read CFTAL dict data
-            scalar axialDistance = elementData[j][0];
-            scalar radius = elementData[j][1];
+            scalar axialDistance  = elementData[j][0];
+            scalar radius         = elementData[j][1];
             scalar azimuthDegrees = elementData[j][2] + azimuthalOffset;
             scalar azimuthRadians = degToRad(azimuthDegrees);
-            scalar chordLength = elementData[j][3];
-            scalar chordMount = elementData[j][4];
-            scalar pitch = elementData[j][5];
+            scalar chordLength    = elementData[j][3];
+            scalar chordMount     = elementData[j][4];
+            scalar pitch          = elementData[j][5];
 
-            // Compute frontal area contribution from this geometry segment
+            // Frontal area contribution
             if (j > 0)
             {
-                scalar deltaAxial = axialDistance - elementData[j-1][0];
-                scalar meanRadius = (radius + elementData[j-1][1])/2;
-                frontalArea += mag(deltaAxial*meanRadius);
+                scalar deltaAxial  = axialDistance - elementData[j-1][0];
+                scalar meanRadius  = (radius + elementData[j-1][1]) / 2.0;
+                frontalArea       += mag(deltaAxial * meanRadius);
             }
 
-            // Set sizes for actuatorFlexibleLineSource elementGeometry lists
+            // Allocate 9 sub-lists per geometry point
             elementGeometry[j].setSize(9);
-            elementGeometry[j][0].setSize(3);
-            elementGeometry[j][1].setSize(3);
-            elementGeometry[j][2].setSize(1);
-            elementGeometry[j][3].setSize(3);
-            elementGeometry[j][4].setSize(1);
-            elementGeometry[j][5].setSize(1);
-            elementGeometry[j][6].setSize(2);//E mu
-            elementGeometry[j][7].setSize(5);//A        Iz       Iy          J alpha
-            elementGeometry[j][8].setSize(6);//restraints
-            
-            // Create geometry point for AL source at origin
-            vector point = turbineFALSource::origin_;
-            // Move along axis
-            point += axialDistance*turbineFALSource::axis_;
-            // Move along chord according to chordMount
-            scalar chordDisplacement = (chordMount - 0.25)*chordLength;
-            point -= chordDisplacement*turbineFALSource::freeStreamDirection_;
-            // Move along radial direction
-            point += radius*turbineFALSource::radialDirection_;
-            // Set initial velocity of quarter chord
-            scalar radiusCorr = sqrt(magSqr((chordMount - 0.25)*chordLength)
-                                     + magSqr(radius));
-            vector initialVelocity = -turbineFALSource::freeStreamDirection_*turbineFALSource::omega_*radiusCorr;
-            scalar velAngle = atan2(((chordMount - 0.25)*chordLength), radius);
-            turbineFALSource::rotateVector(initialVelocity, vector::zero, turbineFALSource::axis_, velAngle);
-            initialVelocities[j] = initialVelocity;
-            // Rotate point and initial velocity according to azimuth value
-            turbineFALSource::rotateVector(point, turbineFALSource::origin_, turbineFALSource::axis_, azimuthRadians);
-            turbineFALSource::rotateVector
+            elementGeometry[j][0].setSize(3); // position
+            elementGeometry[j][1].setSize(3); // span direction
+            elementGeometry[j][2].setSize(1); // chord length
+            elementGeometry[j][3].setSize(3); // chord reference direction
+            elementGeometry[j][4].setSize(1); // chord mount
+            elementGeometry[j][5].setSize(1); // pitch
+            // Structural sub-lists – sizes match actuatorFlexibleLineSource
+            elementGeometry[j][6].setSize(2); // FEA material [E, Poisson]
+            elementGeometry[j][7].setSize(5); // FEA section  [A Iz Iy J alpha]
+            elementGeometry[j][8].setSize(6); // FEA restraints [r1..r6]
+
+            // Position
+            vector point = origin_;
+            point += axialDistance * axis_;
+            scalar chordDisplacement = (chordMount - 0.25) * chordLength;
+            point -= chordDisplacement * freeStreamDirection_;
+            point += radius * radialDirection_;
+
+            // Initial velocity at quarter chord
+            scalar radiusCorr = sqrt
             (
-                initialVelocities[j],
-                vector::zero,
-                turbineFALSource::axis_,
-                azimuthRadians
+                magSqr((chordMount - 0.25)*chordLength) + magSqr(radius)
             );
+            vector initialVelocity = -freeStreamDirection_ * omega_ * radiusCorr;
+            scalar velAngle = atan2((chordMount - 0.25)*chordLength, radius);
+            rotateVector(initialVelocity, vector::zero, axis_, velAngle);
+            initialVelocities[j] = initialVelocity;
 
-            // Set point coordinates for AL source
-            elementGeometry[j][0][0] = point.x(); // x location of geom point
-            elementGeometry[j][0][1] = point.y(); // y location of geom point
-            elementGeometry[j][0][2] = point.z(); // z location of geom point
+            rotateVector(point, origin_, axis_, azimuthRadians);
+            rotateVector(initialVelocities[j], vector::zero, axis_, azimuthRadians);
 
-            // Set span directions for AL source
-            elementGeometry[j][1][0] = turbineFALSource::axis_.x(); // x component of span dir
-            elementGeometry[j][1][1] = turbineFALSource::axis_.y(); // y component of span dir
-            elementGeometry[j][1][2] = turbineFALSource::axis_.z(); // z component of span dir
+            // [0] position
+            elementGeometry[j][0][0] = point.x();
+            elementGeometry[j][0][1] = point.y();
+            elementGeometry[j][0][2] = point.z();
 
-            // Set chord length
+            // [1] span direction (along turbine axis for blades)
+            elementGeometry[j][1][0] = axis_.x();
+            elementGeometry[j][1][1] = axis_.y();
+            elementGeometry[j][1][2] = axis_.z();
+
+            // [2] chord length
             elementGeometry[j][2][0] = chordLength;
 
-            // Set chord reference direction
-            vector chordDirection = -turbineFALSource::freeStreamDirection_;
-            turbineFALSource::rotateVector(chordDirection, vector::zero, turbineFALSource::axis_, azimuthRadians);
+            // [3] chord reference direction
+            vector chordDirection = -freeStreamDirection_;
+            rotateVector(chordDirection, vector::zero, axis_, azimuthRadians);
             elementGeometry[j][3][0] = chordDirection.x();
             elementGeometry[j][3][1] = chordDirection.y();
             elementGeometry[j][3][2] = chordDirection.z();
 
-            // Set chord mount
+            // [4] chord mount
             elementGeometry[j][4][0] = chordMount;
 
-            // Set pitch
+            // [5] pitch
             elementGeometry[j][5][0] = pitch;
-                        //Element mats
-            //E
-            elementGeometry[j][6][0] = elementData[j][6];
-            elementGeometry[j][6][1] = elementData[j][7];
-            //elementGeometry[j][6][1] = mu;
-            //A        Iz       Iy          J alpha
-            //Needs rotation?
-            elementGeometry[j][7][0] = elementData[j][8];
-            elementGeometry[j][7][1] = elementData[j][9];
-            elementGeometry[j][7][2] = elementData[j][10];
-            elementGeometry[j][7][3] = elementData[j][11];
-            elementGeometry[j][7][4] = elementData[j][12];
-            //Restraints, fix hub
-            
-            if (j<1)
-            {
-                elementGeometry[j][8] = 1;
-                }
-            else
-            {
-            elementGeometry[j][8] = 0.;
-        }
-            
-            
+
+            // [6] FEA material – read from elementData columns 6-7
+            // Expected: elementData[j][6] = E, elementData[j][7] = Poisson
+            elementGeometry[j][6][0] =
+                (elementData[j].size() > 6) ? elementData[j][6] : 2.1e11;
+            elementGeometry[j][6][1] =
+                (elementData[j].size() > 7) ? elementData[j][7] : 0.3;
+
+            // [7] FEA section – read from elementData columns 8-12
+            // Expected: A, Iz, Iy, J, alpha
+            for (int k = 0; k < 5; k++)
+                elementGeometry[j][7][k] =
+                    (elementData[j].size() > 8 + k) ? elementData[j][8 + k] : 0.0;
+
+            // [8] FEA restraints – read from elementData columns 13-18
+            // Expected: 6 integers (0 or 1) per DOF
+            for (int k = 0; k < 6; k++)
+                elementGeometry[j][8][k] =
+                    (elementData[j].size() > 13 + k) ? elementData[j][13 + k] : 0.0;
         }
 
-        // Add frontal area to list
         frontalAreas[i] = frontalArea;
 
-        if (debug)
-        {
-            Info<< "Converted element geometry:" << endl << elementGeometry
-                << endl;
-            Info<< "Frontal area from " << bladeName << ": " << frontalArea
-                << endl;
-        }
-
-        bladeSubDict.add("elementGeometry", elementGeometry);
+        bladeSubDict.add("elementGeometry",  elementGeometry);
         bladeSubDict.add("initialVelocities", initialVelocities);
-        bladeSubDict.add("dynamicStall", turbineFALSource::dynamicStallDict_);
+        bladeSubDict.add("dynamicStall",      dynamicStallDict_);
         bladeSubDict.add
         (
             "addedMass",
-            turbineFALSource::coeffs_.lookupOrDefault("addedMass", false)
+            coeffs_.lookupOrDefault("addedMass", false)
         );
         bladeSubDict.add
         (
             "velocitySampleRadius",
-            turbineFALSource::coeffs_.lookupOrDefault("velocitySampleRadius", 0.0)
+            coeffs_.lookupOrDefault("velocitySampleRadius", 0.0)
         );
         bladeSubDict.add
         (
             "nVelocitySamples",
-            turbineFALSource::coeffs_.lookupOrDefault("nVelocitySamples", 20)
+            coeffs_.lookupOrDefault("nVelocitySamples", 20)
         );
-        bladeSubDict.add("selectionMode", turbineFALSource::coeffs_.lookup("selectionMode"));
-        bladeSubDict.add("cellSet", turbineFALSource::coeffs_.lookup("cellSet"));
+        bladeSubDict.add("selectionMode", coeffs_.lookup("selectionMode"));
+        bladeSubDict.add("cellSet",       coeffs_.lookup("cellSet"));
 
-        // Lookup or create flowCurvature subDict
-        dictionary fcDict = turbineFALSource::coeffs_.subOrEmptyDict("flowCurvature");
+        dictionary fcDict = coeffs_.subOrEmptyDict("flowCurvature");
         fcDict.lookupOrAddDefault("active", true);
         word defaultFCModel = "Goude";
-        fcDict.lookupOrAddDefault
-        (
-            "flowCurvatureModel",
-            defaultFCModel
-        );
+        fcDict.lookupOrAddDefault("flowCurvatureModel", defaultFCModel);
         bladeSubDict.add("flowCurvature", fcDict);
 
-        // Do not write force from individual actuator line unless specified
         bladeSubDict.lookupOrAddDefault("writeForceField", false);
 
         dictionary dict;
-        dict.add("actuatorFlexibleLineSourceCoeffs", bladeSubDict);
-        dict.add("type", "actuatorFlexibleLineSource");
-        dict.add("active", turbineFALSource::dict_.lookup("active"));
+        dict.add("actuatorLineSourceCoeffs", bladeSubDict);
+        dict.add("type", modelType);
+        dict.add("active", dict_.lookup("active"));
 
-        actuatorFlexibleLineSource* blade = new actuatorFlexibleLineSource
+        // Create the concrete flexible blade and store it as an
+        // actuatorLineSource pointer (base class PtrList type).
+        // Virtual dispatch through the pointer will call
+        // actuatorFlexibleLineSource::addSup at run time.
+        actuatorLineSource* blade = new actuatorFlexibleLineSource
         (
-            turbineFALSource::name_ + "." + bladeName,
+            name_ + "." + bladeName,
             modelType,
             dict,
-            turbineFALSource::mesh_
+            mesh_
         );
 
-        turbineFALSource::blades_.set(i, blade);
+        blades_.set(i, blade);
+
+        if (debug)
+        {
+            Info<< "Created flexible blade: " << bladeName << nl
+                << "  frontalArea: " << frontalArea << endl;
+        }
     }
 
-    // Frontal area is twice the maximum blade frontal area
-    turbineFALSource::frontalArea_ = 2*max(frontalAreas);
-    Info<< "Frontal area of " << turbineFALSource::name_ << ": " << turbineFALSource::frontalArea_ << endl;
+    frontalArea_ = 2.0 * max(frontalAreas);
+    Info<< "Frontal area of " << name_ << ": " << frontalArea_ << endl;
 }
 
 
+void Foam::fv::crossFlowTurbineFlexibleALSource::rotate(scalar radians)
+{
+    // Identical to crossFlowTurbineALSource::rotate() – re-implemented here
+    // so this class always provides the unique final overrider.
+    if (debug)
+        Info<< "Rotating " << name_ << " by " << radians << " rad" << endl;
+
+    forAll(blades_, i)
+    {
+        blades_[i].rotate(origin_, axis_, radians);
+        blades_[i].setSpeed(origin_, axis_, omega_);
+    }
+
+    if (hasStruts_)
+    {
+        forAll(struts_, i)
+        {
+            struts_[i].rotate(origin_, axis_, radians);
+            struts_[i].setSpeed(origin_, axis_, omega_);
+        }
+    }
+
+    if (hasShaft_)
+    {
+        shaft_->rotate(origin_, axis_, radians);
+        shaft_->setSpeed(origin_, axis_, omega_);
+    }
+}
 
 
-
-// * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::fv::crossFlowTurbineFlexibleALSource::crossFlowTurbineFlexibleALSource
 (
@@ -284,31 +287,30 @@ Foam::fv::crossFlowTurbineFlexibleALSource::crossFlowTurbineFlexibleALSource
     const fvMesh& mesh
 )
 :
-    crossFlowTurbineALSource(name, modelType, dict, mesh),
-    turbineFALSource(name, modelType, dict, mesh)
+    // cellSetOption is the common virtual base; it must be initialised first
+    // and only once, regardless of how many paths reach it.
+    cellSetOption(name, modelType, dict, mesh),
+    crossFlowTurbineALSource(name, modelType, dict, mesh)
+    // Note: actuatorFlexibleLineSource is NOT a base class here.
+    // Flexible blades are instantiated inside createBlades() as concrete
+    // actuatorFlexibleLineSource objects stored through the inherited
+    // blades_ PtrList<actuatorLineSource>.  This avoids the diamond problem
+    // entirely without requiring virtual inheritance changes in other headers.
 {
-    read(dict);
-    turbineFALSource::createCoordinateSystem();
-    turbineFALSource::createBlades();
-    if (hasStruts_)
-    {
-        createStruts();
-    }
-    if (hasShaft_)
-    {
-        createShaft();
-    }
-    turbineFALSource::createOutputFile();
+    // crossFlowTurbineALSource constructor calls read(), createCoordinateSystem()
+    // and createBlades() – but its createBlades() creates rigid blades.
+    // We override createBlades() here and re-run it to replace those blades
+    // with flexible ones.
+    //
+    // Destroy the rigid blades created by the base constructor:
+    blades_.clear();
 
-    // Rotate turbine to azimuthalOffset if necessary
-    scalar azimuthalOffset = turbineFALSource::coeffs_.lookupOrDefault("azimuthalOffset", 0.0);
-    rotate(degToRad(azimuthalOffset));
+    // Re-run the full turbine setup using this class's createBlades():
+    createBlades();
 
-    if (debug)
-    {
-        Info<< "crossFlowTurbineFlexibleALSource created at time = " << turbineFALSource::time_.value()
-            << endl;
-    }
+    // Struts and shaft remain as rigid actuatorLineSource objects because
+    // structural flexibility of struts / shaft is typically not required.
+    // Override createStruts() / createShaft() if needed in future.
 }
 
 
@@ -318,44 +320,61 @@ Foam::fv::crossFlowTurbineFlexibleALSource::~crossFlowTurbineFlexibleALSource()
 {}
 
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
+
+void Foam::fv::crossFlowTurbineFlexibleALSource::addSup
+(
+    fvMatrix<vector>& eqn,
+    const label fieldI
+)
+{
+    // Delegate entirely to the base-class implementation.
+    // Because blades_ holds actuatorFlexibleLineSource objects,
+    // the virtual dispatch inside the base addSup() calls
+    // actuatorFlexibleLineSource::addSup() for each blade automatically.
+    crossFlowTurbineALSource::addSup(eqn, fieldI);
+}
 
 
+void Foam::fv::crossFlowTurbineFlexibleALSource::addSup
+(
+    const volScalarField& rho,
+    fvMatrix<vector>& eqn,
+    const label fieldI
+)
+{
+    crossFlowTurbineALSource::addSup(rho, eqn, fieldI);
+}
+
+
+void Foam::fv::crossFlowTurbineFlexibleALSource::addSup
+(
+    fvMatrix<scalar>& eqn,
+    const label fieldI
+)
+{
+    crossFlowTurbineALSource::addSup(eqn, fieldI);
+}
+
+
+void Foam::fv::crossFlowTurbineFlexibleALSource::writeData(Ostream& os) const
+{
+    // Resolve the writeData ambiguity.  Delegate to cellSetOption which
+    // provides the canonical implementation through the option hierarchy.
+    cellSetOption::writeData(os);
+}
 
 
 bool Foam::fv::crossFlowTurbineFlexibleALSource::read(const dictionary& dict)
 {
-    if (cellSetOption::read(dict))
-    {
-        turbineFALSource::read(dict);
+    return crossFlowTurbineALSource::read(dict);
+}
 
-        // Get struts information
-        strutsDict_ = turbineFALSource::coeffs_.subOrEmptyDict("struts");
-        if (strutsDict_.keys().size() > 0)
-        {
-            turbineFALSource::hasStruts_ = true;
-        }
 
-        // Get shaft information
-        shaftDict_ = turbineFALSource::coeffs_.subOrEmptyDict("shaft");
-        if (shaftDict_.keys().size() > 0)
-        {
-            turbineFALSource::hasShaft_ = true;
-        }
-
-        if (debug)
-        {
-            Info<< "Debugging on" << endl;
-            Info<< "Cross-flow turbine properties:" << endl;
-            printCoeffs();
-        }
-
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+void Foam::fv::crossFlowTurbineFlexibleALSource::printCoeffs() const
+{
+    crossFlowTurbineALSource::printCoeffs();
+    Info<< "Blade type: flexible (FrameAnalysis)" << endl;
 }
 
 
