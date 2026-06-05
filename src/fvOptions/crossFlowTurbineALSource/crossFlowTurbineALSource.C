@@ -493,6 +493,7 @@ Foam::fv::crossFlowTurbineALSource::crossFlowTurbineALSource
 )
 :
     turbineALSource(name, modelType, dict, mesh),
+    cellSetOption(name, modelType, dict, mesh),
     hasStruts_(false),
     hasShaft_(false)
 {

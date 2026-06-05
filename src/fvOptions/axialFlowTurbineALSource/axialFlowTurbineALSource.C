@@ -558,6 +558,7 @@ Foam::fv::axialFlowTurbineALSource::axialFlowTurbineALSource
 )
 :
     turbineALSource(name, modelType, dict, mesh),
+    cellSetOption(name, modelType, dict, mesh),
     hasHub_(false),
     hasTower_(false),
     hasNacelle_(false),

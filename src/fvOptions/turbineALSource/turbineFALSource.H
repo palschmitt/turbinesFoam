@@ -55,7 +55,7 @@ namespace fv
 
 class turbineFALSource
 :
-    public cellSetOption
+    virtual public cellSetOption
 {
 
 protected:

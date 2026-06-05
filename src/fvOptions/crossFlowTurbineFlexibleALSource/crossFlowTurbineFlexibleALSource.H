@@ -88,7 +88,11 @@ public:
     //- Destructor
     virtual ~crossFlowTurbineFlexibleALSource();
 
+            //- Read source dictionary
+            virtual bool read(const dictionary& dict);
 
+            //- Print dictionary values
+            virtual void printCoeffs() const;
    
 };
 
