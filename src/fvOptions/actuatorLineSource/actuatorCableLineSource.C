@@ -197,10 +197,28 @@ void Foam::fv::actuatorCableLineSource::createInitialElements()
         dict.add("freeStreamVelocity", freeStreamVelocity_);
         dict.add("rootDistance",
             mag(position - rootLocation_) / totalLength_);
-        dict.add("CableEA",         cableMat[0]);
-        dict.add("CablePretension", cableMat[1]);
-        dict.add("CableDragCoeff",  Cd);
-        dict.add("CableRestraints", restraint);
+        dict.add("CableEA",           cableMat[0]);
+        dict.add("CablePretension",   cableMat[1]);
+        dict.add("CableDragCoeff",    Cd);
+        // cableSects[seg][1] = cable diameter (if provided); fall back
+        // to chord length (effective diameter) if not set.
+        scalar elemDiam = (cableSects[seg].size() > 1 && cableSects[seg][1] > VSMALL)
+                        ? (cableSects[seg][1]
+                           + (cableSects[seg+1][1] - cableSects[seg][1])
+                             / nElementsPerSegment * pt
+                           + (cableSects[seg+1][1] - cableSects[seg][1])
+                             / nElementsPerSegment / 2.0)
+                        : chordLength;
+        // cableSects[seg][2] = cable material density [kg/m3]
+        scalar elemRhoC = (cableSects[seg].size() > 2)
+                        ? cableSects[seg][2] : 7850.0;
+        // cableSects[seg][3] = reference fluid density [kg/m3]
+        scalar elemRhoF = (cableSects[seg].size() > 3)
+                        ? cableSects[seg][3] : 1025.0;
+        dict.add("CableDiameter",    elemDiam);
+        dict.add("CableDensity",     elemRhoC);
+        dict.add("CableFluidDensity", elemRhoF);
+        dict.add("CableRestraints",  restraint);
         dict.add("addedMass", false);
         dict.add("velocitySampleRadius",
             coeffs_.lookupOrDefault("velocitySampleRadius", 0.0));
@@ -599,11 +617,29 @@ void Foam::fv::actuatorCableLineSource::writeVTK()
     }
     vtkFilePtr_() << endl;
 
-    // Element tension (scalar, written as SCALARS)
+    // Element tension (scalar)
     vtkFilePtr_() << "SCALARS Tension double 1" << nl
                   << "LOOKUP_TABLE default" << nl;
     forAll(elements_, i)
         vtkFilePtr_() << elements_[i].tension() << nl;
+    vtkFilePtr_() << endl;
+
+    // Net buoyancy force
+    vtkFilePtr_() << "VECTORS BuoyancyForce double" << nl;
+    forAll(elements_, i)
+    {
+        vector b = elements_[i].buoyancyForce();
+        vtkFilePtr_() << b[0] << " " << b[1] << " " << b[2] << nl;
+    }
+    vtkFilePtr_() << endl;
+
+    // Span direction
+    vtkFilePtr_() << "VECTORS SpanDirection double" << nl;
+    forAll(elements_, i)
+    {
+        vector s = elements_[i].spanDirection();
+        vtkFilePtr_() << s[0] << " " << s[1] << " " << s[2] << nl;
+    }
     vtkFilePtr_() << endl;
 
     vtkFileSequence_++;

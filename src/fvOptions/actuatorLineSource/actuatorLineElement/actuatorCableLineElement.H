@@ -39,16 +39,30 @@ Description
       using a user-supplied drag coefficient Cd.  No lift is generated.
     - The structural tension recovered from CableAnalysis is stored and
       written to VTK for post-processing.
+    - Buoyancy and self-weight are computed from the cable material density
+      and cross-sectional area, using the local fluid density sampled from
+      the 'rho' field (or a constant reference value for incompressible
+      solvers) and the mesh gravity vector 'g'.  The net body force
+      (buoyancy minus self-weight) is added to cableForce_ so that it is
+      passed to CableAnalysis alongside the hydrodynamic drag.
 
     Input dictionary entries (in addition to those required by
     actuatorLineElement):
     \verbatim
-        P1               (x y z);   // element start node position
-        P2               (x y z);   // element end node position
-        CableEA          value;      // axial stiffness  E*A  [N]
-        CablePretension  value;      // initial pretension T0  [N]
-        CableDragCoeff   value;      // normal drag coefficient Cd [-]
-        CableRestraints  (r1 r2 r3); // 1=fixed, 0=free, one per translational DOF
+        P1                  (x y z);  // element start node position
+        P2                  (x y z);  // element end node position
+        CableEA             value;    // axial stiffness  E*A  [N]
+        CablePretension     value;    // initial pretension T0  [N]
+        CableDragCoeff      value;    // normal drag coefficient Cd [-]
+        CableRestraints     (r1 r2 r3); // 1=fixed, 0=free, per DOF
+        CableDiameter       value;    // outer diameter d  [m]
+        CableDensity        value;    // cable material density rho_c [kg/m3]
+        CableFluidDensity   value;    // reference fluid density rho_f [kg/m3]
+                                      //   (used for incompressible solvers;
+                                      //    ignored if a 'rho' volScalarField
+                                      //    is present in the mesh)
+        CableGravity        (gx gy gz); // gravity vector [m/s2]
+                                        //   default: read from mesh 'g' field
     \endverbatim
 
 SourceFiles
@@ -118,6 +132,30 @@ protected:
         //- Restraint flags per translational DOF (3 entries: x, y, z)
         //  1 = fixed, 0 = free
         List<int> cableRestraints_;
+
+        // --- Buoyancy / self-weight parameters ---
+
+        //- Outer diameter of the cable cross-section [m]
+        //  Used to compute displaced volume = pi/4 * d^2 * spanLength
+        scalar cableDiameter_;
+
+        //- Cable material density [kg/m3]
+        scalar cableDensity_;
+
+        //- Reference fluid density [kg/m3]
+        //  Used for incompressible solvers that have no 'rho' field.
+        //  If a 'rho' volScalarField exists in the mesh it is sampled
+        //  at the element position instead.
+        scalar cableFluidDensity_;
+
+        //- Gravity vector [m/s2] (positive direction = downward by convention)
+        //  Read from the mesh 'g' uniformDimensionedVectorField if available,
+        //  otherwise taken from dictionary entry CableGravity.
+        vector gravity_;
+
+        //- Net buoyancy force on element (buoyancy - self-weight) [N]
+        //  Recomputed each call to calculateForce(); stored for VTK output.
+        vector buoyancyForce_;
 
         //- Force from the previous time step used for incremental loading
         vector structforceVector_;
@@ -199,6 +237,21 @@ public:
             //- Return previously saved structural force
             const vector& structforce() const;
 
+            //- Return cable outer diameter
+            scalar cableDiameter() const;
+
+            //- Return cable material density
+            scalar cableDensity() const;
+
+            //- Return reference fluid density
+            scalar cableFluidDensity() const;
+
+            //- Return gravity vector
+            const vector& gravity() const;
+
+            //- Return last computed net buoyancy force
+            const vector& buoyancyForce() const;
+
 
         // Manipulation
 
@@ -248,10 +301,11 @@ public:
             //- Read element data from dictionary
             void read();
 
-            //- Calculate the hydrodynamic drag force on the element.
-            //  Only the velocity component normal to the span axis is used;
-            //  the force is stored in forceVector_ (base class) and also in
-            //  cableForce_ for structural assembly.
+            //- Calculate the total structural force on the element:
+            //    cableForce_ = hydrodynamic drag (normal component)
+            //                + net buoyancy (buoyancy - self-weight)
+            //  The result is stored in forceVector_ (base class) and
+            //  cableForce_ for CableAnalysis assembly.
             void calculateForce(const volVectorField& Uin);
 };
 

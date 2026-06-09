@@ -16,6 +16,7 @@ License
 #include "fvMatrices.H"
 #include "syncTools.H"
 #include "unitConversion.H"
+#include "uniformDimensionedFields.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -40,6 +41,10 @@ void Foam::fv::actuatorCableLineElement::read()
     dict_.lookup("CablePretension")  >> cablePretension_;
     dict_.lookup("CableDragCoeff")   >> cableDragCoeff_;
     dict_.lookup("CableRestraints")  >> cableRestraints_;
+    dict_.lookup("CableDiameter")    >> cableDiameter_;
+    dict_.lookup("CableDensity")     >> cableDensity_;
+    dict_.lookup("CableFluidDensity") >> cableFluidDensity_;
+    if (dict_.found("CableGravity"))  dict_.lookup("CableGravity") >> gravity_;
 }
 
 
@@ -62,12 +67,27 @@ Foam::fv::actuatorCableLineElement::actuatorCableLineElement
     cablePretension_(dict.lookupOrDefault<scalar>("CablePretension", 0.0)),
     cableDragCoeff_(dict.lookupOrDefault<scalar>("CableDragCoeff", 1.0)),
     cableRestraints_(3, 0),
+    cableDiameter_(dict.lookupOrDefault<scalar>("CableDiameter", 0.05)),
+    cableDensity_(dict.lookupOrDefault<scalar>("CableDensity", 7850.0)),
+    cableFluidDensity_(dict.lookupOrDefault<scalar>("CableFluidDensity", 1025.0)),
+    gravity_(dict.lookupOrDefault<vector>("CableGravity", vector(0, 0, -9.81))),
+    buoyancyForce_(vector::zero),
     structforceVector_(vector::zero)
 {
     // Override defaults with dictionary values if present
     if (dict.found("P1"))               dict.lookup("P1") >> P1_;
     if (dict.found("P2"))               dict.lookup("P2") >> P2_;
     if (dict.found("CableRestraints"))  dict.lookup("CableRestraints") >> cableRestraints_;
+
+    // Attempt to read gravity from the mesh's 'g' field.
+    // This is the standard OpenFOAM uniformDimensionedVectorField written
+    // to the constant/ directory by solvers that use gravity.
+    // If the field is absent (e.g., pure incompressible with no gravity)
+    // the value set in the MIL / dictionary is kept.
+    if (mesh.foundObject<uniformDimensionedVectorField>("g"))
+    {
+        gravity_ = mesh.lookupObject<uniformDimensionedVectorField>("g").value();
+    }
 }
 
 
@@ -110,6 +130,21 @@ const Foam::List<int>& Foam::fv::actuatorCableLineElement::cableRestraints() con
 
 const Foam::vector& Foam::fv::actuatorCableLineElement::structforce() const
 { return structforceVector_; }
+
+Foam::scalar Foam::fv::actuatorCableLineElement::cableDiameter() const
+{ return cableDiameter_; }
+
+Foam::scalar Foam::fv::actuatorCableLineElement::cableDensity() const
+{ return cableDensity_; }
+
+Foam::scalar Foam::fv::actuatorCableLineElement::cableFluidDensity() const
+{ return cableFluidDensity_; }
+
+const Foam::vector& Foam::fv::actuatorCableLineElement::gravity() const
+{ return gravity_; }
+
+const Foam::vector& Foam::fv::actuatorCableLineElement::buoyancyForce() const
+{ return buoyancyForce_; }
 
 
 // --- Manipulation ---
@@ -230,36 +265,76 @@ void Foam::fv::actuatorCableLineElement::calculateForce
     const volVectorField& Uin
 )
 {
-    // Interpolate flow velocity to element position
-    calculateInflowVelocity(Uin);
+    // ------------------------------------------------------------------
+    // 1. Hydrodynamic drag (cross-flow, Morison-style)
+    // ------------------------------------------------------------------
 
-    // Relative velocity (flow - element motion)
+    calculateInflowVelocity(Uin);
     relativeVelocity_ = inflowVelocity_ - velocity_;
 
-    // Remove the component parallel to the span axis (cables only resist
-    // cross-flow drag; axial drag is typically negligible for slender members)
+    // Component of relative velocity normal to the span axis
     vector spanUnit = spanDirection_ / (mag(spanDirection_) + VSMALL);
     vector relNormal = relativeVelocity_
                      - spanUnit * (relativeVelocity_ & spanUnit);
-
     scalar magRelNormal = mag(relNormal);
 
-    // Projected area of element normal to flow: diameter * spanLength
-    // The element doesn't store a diameter directly; use chordLength_ as
-    // the effective cross-sectional dimension.
-    scalar projectedArea = chordLength_ * spanLength_;
+    // Projected area: use cable diameter (d) * span length.
+    // cableDiameter_ is the user-supplied outer diameter; chordLength_ is
+    // kept as a fallback for compatibility with the base class.
+    scalar diameter = (cableDiameter_ > VSMALL) ? cableDiameter_ : chordLength_;
+    scalar projectedArea = diameter * spanLength_;
 
-    // Drag force per unit density (consistent with rest of actuator framework)
-    scalar drag = 0.5 * cableDragCoeff_ * projectedArea * magSqr(relNormal);
+    // Sample local fluid density if a 'rho' field is present (compressible
+    // or multiphase solvers), otherwise use the reference value.
+    scalar rhoFluid = cableFluidDensity_;
+    if (Uin.mesh().foundObject<volScalarField>("rho"))
+    {
+        const volScalarField& rhoField =
+            Uin.mesh().lookupObject<volScalarField>("rho");
+        // Interpolate to element position using the same cell as the
+        // inflow velocity interpolation.
+        label cellI = Uin.mesh().findCell(position_);
+        if (cellI >= 0)
+            rhoFluid = rhoField[cellI];
+    }
 
+    // Drag: F_d = 0.5 * rho_f * Cd * A_proj * |U_n|^2 * U_n/|U_n|
+    vector dragForce = vector::zero;
     if (magRelNormal > VSMALL)
-        forceVector_ = drag * (relNormal / magRelNormal);
-    else
-        forceVector_ = vector::zero;
+    {
+        scalar drag = 0.5 * rhoFluid * cableDragCoeff_
+                    * projectedArea * magSqr(relNormal);
+        dragForce = drag * (relNormal / magRelNormal);
+    }
 
-    // Store as the structural load (used by the line source when assembling
-    // the CableAnalysis load vector)
-    cableForce_ = forceVector_;
+    // ------------------------------------------------------------------
+    // 2. Net buoyancy force (buoyancy - self-weight)
+    //
+    //   Displaced volume  V = pi/4 * d^2 * L_span
+    //   Buoyancy          F_b =  rho_f * |g| * V   (acts opposite to g)
+    //   Self-weight       W   =  rho_c * |g| * V   (acts along g)
+    //   Net body force    F_net = (rho_f - rho_c) * g_unit * |g| * V
+    //                          = (rho_f - rho_c) * g * V
+    //
+    // Note: gravity_ stores the vector g (e.g. (0 0 -9.81)).  The
+    // buoyancy force is -rho_f*g*V (upward), self-weight is rho_c*g*V
+    // (downward), so net = -(rho_f - rho_c)*g*V.
+    // ------------------------------------------------------------------
+
+    scalar pi = Foam::constant::mathematical::pi;
+    scalar elemVolume = (pi / 4.0) * magSqr(diameter) * spanLength_;
+
+    // Net upward body force on the structural node:
+    //   positive when cable is lighter than fluid (floats)
+    //   negative when cable is heavier than fluid (sinks)
+    buoyancyForce_ = -(rhoFluid - cableDensity_) * gravity_ * elemVolume;
+
+    // ------------------------------------------------------------------
+    // 3. Combine and store
+    // ------------------------------------------------------------------
+
+    forceVector_ = dragForce + buoyancyForce_;
+    cableForce_  = forceVector_;
 
     if (debug)
     {
@@ -267,9 +342,11 @@ void Foam::fv::actuatorCableLineElement::calculateForce
             << "  position        : " << position_ << nl
             << "  spanDirection   : " << spanDirection_ << nl
             << "  inflowVelocity  : " << inflowVelocity_ << nl
-            << "  relativeVelocity: " << relativeVelocity_ << nl
             << "  relNormal       : " << relNormal << nl
-            << "  drag force      : " << forceVector_ << nl
+            << "  rhoFluid        : " << rhoFluid << nl
+            << "  drag force      : " << dragForce << nl
+            << "  buoyancy force  : " << buoyancyForce_ << nl
+            << "  total cableForce: " << cableForce_ << nl
             << "  tension         : " << tension_ << endl;
     }
 }
