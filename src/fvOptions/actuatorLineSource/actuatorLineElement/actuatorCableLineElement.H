@@ -252,6 +252,9 @@ public:
             //- Return last computed net buoyancy force
             const vector& buoyancyForce() const;
 
+            //- Return span direction (unit vector along deformed element axis)
+            const vector& spanDirection() const;
+
 
         // Manipulation
 

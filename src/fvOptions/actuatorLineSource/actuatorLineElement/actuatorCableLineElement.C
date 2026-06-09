@@ -146,6 +146,9 @@ const Foam::vector& Foam::fv::actuatorCableLineElement::gravity() const
 const Foam::vector& Foam::fv::actuatorCableLineElement::buoyancyForce() const
 { return buoyancyForce_; }
 
+const Foam::vector& Foam::fv::actuatorCableLineElement::spanDirection() const
+{ return spanDirection_; }
+
 
 // --- Manipulation ---
 
