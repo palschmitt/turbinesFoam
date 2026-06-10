@@ -269,39 +269,88 @@ void Foam::fv::actuatorCableLineElement::calculateForce
 )
 {
     // ------------------------------------------------------------------
-    // 1. Hydrodynamic drag (cross-flow, Morison-style)
+    // Cable force calculation.
+    //
+    // IMPORTANT: we do NOT call the base class actuatorLineElement::
+    // calculateForce() because it computes lift/drag from polar data and
+    // performs angle-of-attack arithmetic that produces FPE (divide-by-
+    // zero) when the relative velocity or chord length is near-zero.
+    // All force physics for a cable are handled here explicitly.
     // ------------------------------------------------------------------
 
+    // 1. Sample inflow velocity at element position.
+    //    calculateInflowVelocity internally calls calcProjectionEpsilon,
+    //    which issues a FatalError if the element position is not found in
+    //    any mesh cell.  For a cable this is a legitimate condition: anchor
+    //    nodes or elements that have deformed outside the CFD domain should
+    //    contribute zero hydrodynamic force while still participating in the
+    //    structural solve.  Check mesh membership first and return zero force
+    //    if the element is outside the domain on all processors.
+    {
+        label cellI = mesh_.findCell(position_);
+        label cellIGlobal = cellI;
+        reduce(cellIGlobal, maxOp<label>());
+        if (cellIGlobal < 0)
+        {
+            forceVector_   = vector::zero;
+            cableForce_    = vector::zero;
+            buoyancyForce_ = vector::zero;
+            return;
+        }
+    }
+
     calculateInflowVelocity(Uin);
+
+    // Guard: if the inflow velocity is effectively zero (e.g. first
+    // iteration before the flow field is initialised) return immediately
+    // with zero force to avoid propagating NaN/Inf into the solver.
+    if (mag(inflowVelocity_) < VSMALL && mag(velocity_) < VSMALL)
+    {
+        forceVector_   = vector::zero;
+        cableForce_    = vector::zero;
+        buoyancyForce_ = vector::zero;
+        return;
+    }
+
     relativeVelocity_ = inflowVelocity_ - velocity_;
 
-    // Component of relative velocity normal to the span axis
-    vector spanUnit = spanDirection_ / (mag(spanDirection_) + VSMALL);
+    // ------------------------------------------------------------------
+    // 2. Hydrodynamic drag (cross-flow, Morison-style)
+    // ------------------------------------------------------------------
+
+    // Unit span vector — guard against zero-length element
+    scalar magSpan = mag(spanDirection_);
+    vector spanUnit = (magSpan > VSMALL)
+                    ? spanDirection_ / magSpan
+                    : vector(0, 0, 1);
+
+    // Velocity component normal to span
     vector relNormal = relativeVelocity_
                      - spanUnit * (relativeVelocity_ & spanUnit);
     scalar magRelNormal = mag(relNormal);
 
-    // Projected area: use cable diameter (d) * span length.
-    // cableDiameter_ is the user-supplied outer diameter; chordLength_ is
-    // kept as a fallback for compatibility with the base class.
-    scalar diameter = (cableDiameter_ > VSMALL) ? cableDiameter_ : chordLength_;
-    scalar projectedArea = diameter * spanLength_;
+    // Effective diameter: prefer explicit cableDiameter_, fall back to
+    // chordLength_ (set from elementGeometry col [2])
+    scalar diameter = (cableDiameter_ > VSMALL)
+                    ? cableDiameter_
+                    : max(chordLength_, VSMALL);
 
-    // Sample local fluid density if a 'rho' field is present (compressible
-    // or multiphase solvers), otherwise use the reference value.
-    scalar rhoFluid = cableFluidDensity_;
+    // Guard span length
+    scalar spanLen = max(spanLength_, VSMALL);
+    scalar projectedArea = diameter * spanLen;
+
+    // Local fluid density: sample 'rho' field if present, else use
+    // the user-supplied reference value
+    scalar rhoFluid = max(cableFluidDensity_, VSMALL);
     if (Uin.mesh().foundObject<volScalarField>("rho"))
     {
         const volScalarField& rhoField =
             Uin.mesh().lookupObject<volScalarField>("rho");
-        // Interpolate to element position using the same cell as the
-        // inflow velocity interpolation.
         label cellI = Uin.mesh().findCell(position_);
         if (cellI >= 0)
-            rhoFluid = rhoField[cellI];
+            rhoFluid = max(rhoField[cellI], VSMALL);
     }
 
-    // Drag: F_d = 0.5 * rho_f * Cd * A_proj * |U_n|^2 * U_n/|U_n|
     vector dragForce = vector::zero;
     if (magRelNormal > VSMALL)
     {
@@ -311,29 +360,18 @@ void Foam::fv::actuatorCableLineElement::calculateForce
     }
 
     // ------------------------------------------------------------------
-    // 2. Net buoyancy force (buoyancy - self-weight)
-    //
-    //   Displaced volume  V = pi/4 * d^2 * L_span
-    //   Buoyancy          F_b =  rho_f * |g| * V   (acts opposite to g)
-    //   Self-weight       W   =  rho_c * |g| * V   (acts along g)
-    //   Net body force    F_net = (rho_f - rho_c) * g_unit * |g| * V
-    //                          = (rho_f - rho_c) * g * V
-    //
-    // Note: gravity_ stores the vector g (e.g. (0 0 -9.81)).  The
-    // buoyancy force is -rho_f*g*V (upward), self-weight is rho_c*g*V
-    // (downward), so net = -(rho_f - rho_c)*g*V.
+    // 3. Net buoyancy (buoyancy - self-weight)
+    //    F_net = -(rho_f - rho_c) * g * V
+    //    V = pi/4 * d^2 * L_span
     // ------------------------------------------------------------------
 
     scalar pi = Foam::constant::mathematical::pi;
-    scalar elemVolume = (pi / 4.0) * magSqr(diameter) * spanLength_;
+    scalar elemVolume = (pi / 4.0) * magSqr(diameter) * spanLen;
 
-    // Net upward body force on the structural node:
-    //   positive when cable is lighter than fluid (floats)
-    //   negative when cable is heavier than fluid (sinks)
     buoyancyForce_ = -(rhoFluid - cableDensity_) * gravity_ * elemVolume;
 
     // ------------------------------------------------------------------
-    // 3. Combine and store
+    // 4. Combine
     // ------------------------------------------------------------------
 
     forceVector_ = dragForce + buoyancyForce_;
@@ -343,10 +381,12 @@ void Foam::fv::actuatorCableLineElement::calculateForce
     {
         Info<< "actuatorCableLineElement " << name_ << ":" << nl
             << "  position        : " << position_ << nl
-            << "  spanDirection   : " << spanDirection_ << nl
+            << "  spanUnit        : " << spanUnit << nl
             << "  inflowVelocity  : " << inflowVelocity_ << nl
             << "  relNormal       : " << relNormal << nl
             << "  rhoFluid        : " << rhoFluid << nl
+            << "  diameter        : " << diameter << nl
+            << "  spanLen         : " << spanLen << nl
             << "  drag force      : " << dragForce << nl
             << "  buoyancy force  : " << buoyancyForce_ << nl
             << "  total cableForce: " << cableForce_ << nl

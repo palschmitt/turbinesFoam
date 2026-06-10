@@ -197,6 +197,17 @@ void Foam::fv::actuatorCableLineSource::createInitialElements()
         dict.add("freeStreamVelocity", freeStreamVelocity_);
         dict.add("rootDistance",
             mag(position - rootLocation_) / totalLength_);
+        // Entries required by actuatorLineElement::read() in the base class.
+        // Cables have no pitch/chordMount concept; safe dummy values are used
+        // so the base class initialises without error.
+        dict.add("chordMount",     0.5);          // half-chord mount (unused)
+        dict.add("pitch",          scalar(0.0));  // no pitch for cables
+        dict.add("flowCurvature",  dictionary()); // empty sub-dict
+        // Do NOT add 'dynamicStall' to the element dict.
+        // The base class actuatorLineElement only constructs a dynamic stall
+        // model when the key is present (mirrors actuatorFlexibleLineSource
+        // behaviour).  All registered models require full polar data; cables
+        // have none, so omitting the entry disables the model entirely.
         dict.add("CableEA",           cableMat[0]);
         dict.add("CablePretension",   cableMat[1]);
         dict.add("CableDragCoeff",    Cd);
@@ -220,6 +231,26 @@ void Foam::fv::actuatorCableLineSource::createInitialElements()
         dict.add("CableFluidDensity", elemRhoF);
         dict.add("CableRestraints",  restraint);
         dict.add("addedMass", false);
+        // profileName and profileData are required by the actuatorLineElement
+        // base class read().  Cables do not use polar data so we inject the
+        // dummy 'cable' profile that must be present in the fvOptions dict.
+        word profileName = "cable";
+        if (elementProfiles_.size() > 0)
+            profileName = elementProfiles_
+                [i * elementProfiles_.size() / nElements_];
+        dict.add("profileName", profileName);
+        if (profileData_.found(profileName))
+            dict.add("profileData", profileData_.subDict(profileName));
+        else
+        {
+            // Build a minimal flat polar so the element does not fatal
+            dictionary dummyProfile;
+            List<List<scalar>> dummyData(2);
+            dummyData[0] = {-180.0, 0.0, 0.0};
+            dummyData[1] = {  180.0, 0.0, 0.0};
+            dummyProfile.add("data", dummyData);
+            dict.add("profileData", dummyProfile);
+        }
         dict.add("velocitySampleRadius",
             coeffs_.lookupOrDefault("velocitySampleRadius", 0.0));
         dict.add("nVelocitySamples",
@@ -281,12 +312,18 @@ void Foam::fv::actuatorCableLineSource::evaluateDeformation()
     List<scalar> sv(3, 0.0);
     List<int>    iv(3, 0);
 
+    // Initialise all restraint rows to zero (interior = free).
+    // Boundary nodes are overwritten below.
+    for (int k = 0; k < nNodes; k++)
+        CARestraints[k] = List<int>(3, 0);
+
     // --- First node (P1 of element 0) ---
     vector P1first = elements_[0].P1();
     sv[0] = P1first.x(); sv[1] = P1first.y(); sv[2] = P1first.z();
     CANodes[0]      = sv;
     CALoads[0]      = List<scalar>(3, 0.0);
     CAPrescribed[0] = List<scalar>(3, 0.0);
+    CARestraints[0] = elements_[0].cableRestraints();  // anchor BC
 
     forAll(elements_, i)
     {
@@ -338,14 +375,9 @@ void Foam::fv::actuatorCableLineSource::evaluateDeformation()
         t0[0] = elements_[i].cablePretension();
         CAPretension[2*i]     = t0;
         CAPretension[2*i + 1] = t0;
-
-        // --- Restraints: zero on interior nodes ---
-        CARestraints[2*i]     = List<int>(3, 0);
-        CARestraints[2*i + 1] = List<int>(3, 0);
     }
 
-    // Apply boundary restraints at first and last nodes
-    CARestraints[0]          = elements_[0].cableRestraints();
+    // Apply tip (last node) boundary restraint
     CARestraints[nNodes - 1] = elements_.last().cableRestraints();
 
     // ------------------------------------------------------------------

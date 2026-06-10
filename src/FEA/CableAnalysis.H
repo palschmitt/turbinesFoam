@@ -143,6 +143,7 @@ class CableAnalysis
     // Solver parameters
     int    maxIter_;      //- Maximum Newton-Raphson iterations
     double tol_;          //- Convergence tolerance (relative residual norm)
+    double minL0_;        //- Minimum reference element length (for step limiting)
 
 
     // -----------------------------------------------------------------------

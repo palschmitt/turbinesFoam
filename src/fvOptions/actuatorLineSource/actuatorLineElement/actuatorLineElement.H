@@ -425,7 +425,7 @@ public:
         // Evaluation
 
             //- Calculate forces
-            void calculateForce
+            virtual void calculateForce
             (
                 const volVectorField& Uin
             );

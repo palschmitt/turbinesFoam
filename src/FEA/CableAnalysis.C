@@ -11,6 +11,9 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "CableAnalysis.H"
+#include "error.H"
+#include <limits>
+#include <cmath>
 
 // * * * * * * * * * * * * * Private Helper Functions * * * * * * * * * * * //
 
@@ -74,6 +77,27 @@ void Foam::CableAnalysis::updateElemGeom(const arma::Mat<double>& u)
                      nodes_(n2,2) - nodes_(n1,2)};
     L0_ = arma::norm(dv0);
 
+    // Guard: zero reference length means coincident nodes in the input mesh –
+    // this is a setup error.  Set L0_ to a small positive value so we do not
+    // divide by zero, then flag excessive strain below.
+    if (L0_ < 1.0e-14)
+    {
+        L0_ = 1.0e-14;
+        WarningIn("CableAnalysis::updateElemGeom()")
+            << "Element " << ielem_ << " has zero reference length (L0=0). "
+            << "Check that no two consecutive nodes in the cable mesh are "
+               "coincident.  Axial strain will be unreliable for this element."
+            << endl;
+    }
+
+    // Guard: deformed length collapsing to zero (e.g. Newton overshoot).
+    // Clamp L_ to 1 % of L0_ so direction cosines remain finite.
+    // The resulting large compressive strain will make T_ strongly negative,
+    // the element will be treated as slack, and the geometric stiffness will
+    // resist further collapse on the next iteration.
+    if (L_ < 1.0e-2 * L0_)
+        L_ = 1.0e-2 * L0_;
+
     // Unit direction cosines (deformed)
     Cx_ = dv(0) / L_;
     Cy_ = dv(1) / L_;
@@ -91,9 +115,13 @@ void Foam::CableAnalysis::elemStiffness()
     // --- Direction cosine vector e = [Cx Cy Cz]
     arma::vec e = {Cx_, Cy_, Cz_};
 
+    // Guard: L_ should never be zero here (updateElemGeom clamps it), but
+    // protect the divisions anyway.
+    double Lsafe = std::max(L_, 1.0e-14);
+
     // --- Elastic stiffness contribution (axial only)
     //  k_e = (EA/L) * [e*e^T , -e*e^T ; -e*e^T , e*e^T]
-    double kAxial = E_ * A_ / L_;
+    double kAxial = E_ * A_ / Lsafe;
 
     // --- Geometric (stress) stiffness contribution
     //  k_g = (T/L) * [ I - e*e^T , -(I - e*e^T) ; -(I-e*e^T) , (I-e*e^T) ]
@@ -101,13 +129,13 @@ void Foam::CableAnalysis::elemStiffness()
     // A small stabilisation stiffness kSlack is retained to avoid singularity.
     double kGeo = 0.0;
     if (T_ > 0.0)
-        kGeo = T_ / L_;
+        kGeo = T_ / Lsafe;
     else
     {
         // Slack cable: remove elastic contribution too (no compression)
         kAxial = 0.0;
         // Tiny stabiliser keeps the system non-singular
-        kGeo = 1.0e-10 * E_ * A_ / L0_;
+        kGeo = 1.0e-10 * E_ * A_ / std::max(L0_, 1.0e-14);
     }
 
     arma::mat I3 = arma::eye(3, 3);
@@ -302,6 +330,14 @@ void Foam::CableAnalysis::solve()
             u(id) = defr_(pos - nfree_);
     }
 
+    // Reference load norm for relative convergence check.
+    // Use the full external force vector (all DOF) so the normalisation
+    // is correct when external loads are zero but prescribed BCs are not.
+    double fNorm = arma::norm(Fext_);
+    if (fNorm < 1.0e-30) fNorm = 1.0;
+
+    bool converged = false;
+
     for (int iter = 0; iter < maxIter_; iter++)
     {
         // -- 1. Assemble tangent stiffness from deformed geometry
@@ -337,24 +373,74 @@ void Foam::CableAnalysis::solve()
         // Subtract coupling from prescribed DOF
         Rf -= Kfr_ * defr_;
 
-        // -- 5. Check convergence
+        // -- 5. Check convergence (every iteration, including iter == 0)
         double resNorm = arma::norm(Rf);
-        double fNorm   = arma::norm(Ff_);
-        if (fNorm < 1.0e-30) fNorm = 1.0;   // guard against zero-load case
-        if (resNorm / fNorm < tol_ && iter > 0)
+        if (resNorm / fNorm < tol_)
+        {
+            converged = true;
             break;
+        }
 
-        // -- 6. Solve for displacement increment
-        arma::Mat<double> du = arma::solve(
-            Kff_, Rf, arma::solve_opts::no_approx);
+        // -- 6. Solve for displacement increment.
+        //    Primary attempt: direct solve.
+        //    If Kff_ is singular (e.g. all-slack cable at t=0) armadillo
+        //    returns false rather than throwing when we use the bool-return
+        //    overload.  On failure, apply Tikhonov regularisation scaled to
+        //    the diagonal magnitude and retry.  A second failure is a genuine
+        //    problem and reported via OpenFOAM FatalError so that all MPI
+        //    ranks receive a clean abort message rather than an uncaught C++
+        //    exception that kills ranks independently.
+        arma::Mat<double> du(nfree_, 1);
+        bool solveOk = arma::solve(du, Kff_, Rf,
+                                   arma::solve_opts::no_approx +
+                                   arma::solve_opts::equilibrate);
+        if (!solveOk)
+        {
+            double alpha = 1.0e-6 * arma::abs(Kff_.diag()).max();
+            if (alpha < 1.0e-30) alpha = 1.0;
+            arma::Mat<double> Kreg = Kff_;
+            Kreg.diag() += alpha;
+            if (!arma::solve(du, Kreg, Rf))
+            {
+                FatalErrorIn("CableAnalysis::solve()")
+                    << "Tangent stiffness matrix is singular and Tikhonov "
+                       "regularisation failed at Newton-Raphson iteration "
+                    << iter << ".\n"
+                    << "Check that at least one node per free-DOF direction "
+                       "is restrained and that EA > 0 for all elements.\n"
+                    << "nfree=" << nfree_
+                    << "  nelems=" << nelems_
+                    << "  nnodes=" << nnodes_
+                    << abort(FatalError);
+            }
+        }
 
-        // -- 7. Update free DOF displacements
+        // -- 7. Update free DOF displacements.
+        //    Limit the step so no free DOF moves more than half the shortest
+        //    reference element length in a single iteration.  This prevents
+        //    Newton overshoot from collapsing elements to zero length on the
+        //    first iteration when pretension dominates the residual.
+        double duMax = arma::abs(du).max();
+        if (duMax > 0.5 * minL0_)
+            du *= (0.5 * minL0_) / duMax;
+
         for (int id = 0; id < totdof_; id++)
         {
             int pos = order2_(id);
             if (pos < nfree_)
                 u(id) += du(pos);
         }
+    }
+
+    if (!converged)
+    {
+        WarningIn("CableAnalysis::solve()")
+            << "Newton-Raphson did not converge in " << maxIter_
+            << " iterations (tol=" << tol_ << ").\n"
+            << "Continuing with last iterate.  Consider increasing "
+               "CableMaxIter or relaxing CableTolerance, or verify that "
+               "boundary conditions fully constrain rigid-body motion."
+            << endl;
     }
 
     // -----------------------------------------------------------------------
@@ -387,7 +473,7 @@ void Foam::CableAnalysis::solve()
 Foam::CableAnalysis::CableAnalysis()
 :
     nelems_(0), nnodes_(0), nnode_(2), ndof_(3),
-    totdof_(0), nfree_(0), maxIter_(200), tol_(1.0e-8)
+    totdof_(0), nfree_(0), maxIter_(200), tol_(1.0e-8), minL0_(1.0)
 {}
 
 
@@ -423,6 +509,20 @@ Foam::CableAnalysis::CableAnalysis
 
     // Build DOF ordering from restraints
     neworder();
+
+    // Compute minimum reference element length (used for step limiting in solve)
+    minL0_ = std::numeric_limits<double>::max();
+    for (int ie = 0; ie < nelems_; ie++)
+    {
+        int n1 = elems_(ie, 0);
+        int n2 = elems_(ie, 1);
+        double dx = nodes_(n2,0) - nodes_(n1,0);
+        double dy = nodes_(n2,1) - nodes_(n1,1);
+        double dz = nodes_(n2,2) - nodes_(n1,2);
+        double L0 = std::sqrt(dx*dx + dy*dy + dz*dz);
+        if (L0 > 1.0e-14 && L0 < minL0_) minL0_ = L0;
+    }
+    if (minL0_ > 1.0e29) minL0_ = 1.0;  // fallback if all lengths are zero
 
     // Assemble load vectors
     assembleLoads();
