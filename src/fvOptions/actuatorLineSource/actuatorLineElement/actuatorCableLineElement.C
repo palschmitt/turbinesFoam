@@ -72,7 +72,8 @@ Foam::fv::actuatorCableLineElement::actuatorCableLineElement
     cableFluidDensity_(dict.lookupOrDefault<scalar>("CableFluidDensity", 1025.0)),
     gravity_(dict.lookupOrDefault<vector>("CableGravity", vector(0, 0, -9.81))),
     buoyancyForce_(vector::zero),
-    structforceVector_(vector::zero)
+    structforceVector_(vector::zero),
+    positionInMesh_(true)
 {
     // Override defaults with dictionary values if present
     if (dict.found("P1"))               dict.lookup("P1") >> P1_;
@@ -290,7 +291,8 @@ void Foam::fv::actuatorCableLineElement::calculateForce
         label cellI = mesh_.findCell(position_);
         label cellIGlobal = cellI;
         reduce(cellIGlobal, maxOp<label>());
-        if (cellIGlobal < 0)
+        positionInMesh_ = (cellIGlobal >= 0);
+        if (!positionInMesh_)
         {
             forceVector_   = vector::zero;
             cableForce_    = vector::zero;
@@ -391,6 +393,44 @@ void Foam::fv::actuatorCableLineElement::calculateForce
             << "  buoyancy force  : " << buoyancyForce_ << nl
             << "  total cableForce: " << cableForce_ << nl
             << "  tension         : " << tension_ << endl;
+    }
+}
+
+
+// --- addSup overrides ---
+// The base class addSup calls calculateForce then applyForceField in sequence.
+// applyForceField calls calcProjectionEpsilon, which issues a FatalError if the
+// element position is not in any mesh cell.  For cable elements this is a valid
+// condition (anchor nodes, out-of-domain segments).  We override addSup to
+// skip applyForceField when calculateForce already flagged positionInMesh_=false.
+
+void Foam::fv::actuatorCableLineElement::addSup
+(
+    fvMatrix<vector>& eqn,
+    volVectorField& forceField
+)
+{
+    const volVectorField& Uin(eqn.psi());
+    calculateForce(Uin);
+    if (positionInMesh_)
+        applyForceField(forceField);
+}
+
+
+void Foam::fv::actuatorCableLineElement::addSup
+(
+    const volScalarField& rho,
+    fvMatrix<vector>& eqn,
+    volVectorField& forceField
+)
+{
+    const volVectorField& Uin(eqn.psi());
+    calculateForce(Uin);
+    if (positionInMesh_)
+    {
+        applyForceField(forceField);
+        multiplyForceRho(rho);
+        forceField *= rho;
     }
 }
 

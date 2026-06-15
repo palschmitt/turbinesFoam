@@ -310,10 +310,10 @@ void Foam::fv::actuatorCableLineSource::evaluateDeformation()
     List<List<scalar>> CAPretension(nElems);
 
     List<scalar> sv(3, 0.0);
-    List<int>    iv(3, 0);
 
-    // Initialise all restraint rows to zero (interior = free).
-    // Boundary nodes are overwritten below.
+    // Pre-initialise all restraint rows to zero (free DOF).
+    // Boundary nodes are set explicitly after the loop so they cannot be
+    // clobbered by interior-node assignments inside the loop.
     for (int k = 0; k < nNodes; k++)
         CARestraints[k] = List<int>(3, 0);
 
@@ -323,7 +323,6 @@ void Foam::fv::actuatorCableLineSource::evaluateDeformation()
     CANodes[0]      = sv;
     CALoads[0]      = List<scalar>(3, 0.0);
     CAPrescribed[0] = List<scalar>(3, 0.0);
-    CARestraints[0] = elements_[0].cableRestraints();  // anchor BC
 
     forAll(elements_, i)
     {
@@ -377,12 +376,16 @@ void Foam::fv::actuatorCableLineSource::evaluateDeformation()
         CAPretension[2*i + 1] = t0;
     }
 
-    // Apply tip (last node) boundary restraint
+    // Apply boundary restraints after the loop.
+    CARestraints[0]          = elements_[0].cableRestraints();
     CARestraints[nNodes - 1] = elements_.last().cableRestraints();
 
     // ------------------------------------------------------------------
     // Solve
     // ------------------------------------------------------------------
+    int    caMaxIter = coeffs_.lookupOrDefault<int>   ("CableMaxIter",    200);
+    scalar caTol     = coeffs_.lookupOrDefault<scalar>("CableTolerance", 1e-8);
+
     CableAnalysis CA
     (
         CANodes,
@@ -391,7 +394,9 @@ void Foam::fv::actuatorCableLineSource::evaluateDeformation()
         CAMats,
         CALoads,
         CAPrescribed,
-        CAPretension
+        CAPretension,
+        caMaxIter,
+        caTol
     );
 
     List<List<scalar>> deformations = CA.nodedispList();

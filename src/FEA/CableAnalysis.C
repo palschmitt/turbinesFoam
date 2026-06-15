@@ -331,9 +331,28 @@ void Foam::CableAnalysis::solve()
     }
 
     // Reference load norm for relative convergence check.
-    // Use the full external force vector (all DOF) so the normalisation
-    // is correct when external loads are zero but prescribed BCs are not.
-    double fNorm = arma::norm(Fext_);
+    // We need a force scale representative of the problem.  On incremental
+    // calls from actuatorCableLineSource the external load vector contains
+    // only the *change* in fluid force since the last step, which is zero
+    // when the flow is steady.  In that case norm(Fext_)=0 and the old
+    // guard (fNorm=1) gave an absolute tolerance of tol_=1e-8 N -- far
+    // tighter than needed and impossible to reach when pretension creates
+    // O(T0) internal forces at the free nodes.
+    //
+    // Correct approach: use the larger of
+    //   (a) norm(Fext_)           -- external load scale
+    //   (b) norm(Fint at u=0)     -- internal prestress scale
+    // so the relative tolerance is always meaningful.
+    //
+    // Compute Fint at u=0 (reference internal forces from pretension).
+    {
+        arma::Mat<double> u0;
+        u0.zeros(totdof_, 1);
+        internalForces(u0);
+    }
+    double fNormExt  = arma::norm(Fext_);
+    double fNormInt  = arma::norm(Fint_);
+    double fNorm     = std::max(fNormExt, fNormInt);
     if (fNorm < 1.0e-30) fNorm = 1.0;
 
     bool converged = false;

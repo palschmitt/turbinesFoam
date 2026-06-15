@@ -160,6 +160,12 @@ protected:
         //- Force from the previous time step used for incremental loading
         vector structforceVector_;
 
+        //- True when this element's position_ was found in the CFD mesh on
+        //  the most recent calculateForce() call.  Set before applyForceField
+        //  is called so that applyForceField can skip the base-class
+        //  calcProjectionEpsilon() FatalError for out-of-domain nodes.
+        bool positionInMesh_;
+
 
     // Protected Member Functions
 
@@ -310,6 +316,23 @@ public:
             //  The result is stored in forceVector_ (base class) and
             //  cableForce_ for CableAnalysis assembly.
             void calculateForce(const volVectorField& Uin);
+
+            //- Source term to momentum equation.
+            //  Overridden to skip applyForceField when position is outside
+            //  the CFD domain (which is valid for cable anchor nodes).
+            virtual void addSup
+            (
+                fvMatrix<vector>& eqn,
+                volVectorField& forceField
+            );
+
+            //- Source term to compressible momentum equation.
+            virtual void addSup
+            (
+                const volScalarField& rho,
+                fvMatrix<vector>& eqn,
+                volVectorField& forceField
+            );
 };
 
 
