@@ -157,9 +157,6 @@ protected:
         //  Recomputed each call to calculateForce(); stored for VTK output.
         vector buoyancyForce_;
 
-        //- Force from the previous time step used for incremental loading
-        vector structforceVector_;
-
         //- True when this element's position_ was found in the CFD mesh on
         //  the most recent calculateForce() call.  Set before applyForceField
         //  is called so that applyForceField can skip the base-class
@@ -240,9 +237,6 @@ public:
             //- Return restraint flags (3 entries)
             const List<int>& cableRestraints() const;
 
-            //- Return previously saved structural force
-            const vector& structforce() const;
-
             //- Return cable outer diameter
             scalar cableDiameter() const;
 
@@ -272,9 +266,6 @@ public:
 
             //- Set accumulated deformation (additive)
             void setDeformation(vector deformation);
-
-            //- Set the structural force stored from previous step
-            void setStructForce(vector structforce);
 
             //- Set the element position (midpoint)
             void setPosition(vector newPosition);

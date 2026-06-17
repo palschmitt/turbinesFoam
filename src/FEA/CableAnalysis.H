@@ -145,6 +145,12 @@ class CableAnalysis
     double tol_;          //- Convergence tolerance (relative residual norm)
     double minL0_;        //- Minimum reference element length (for step limiting)
 
+    // Warm-start initial displacement (totdof x 1), default zero.
+    // When supplied this is used as the starting point for Newton-Raphson
+    // instead of the zero vector, so the solver begins near the previous
+    // converged solution and avoids large transient overshoots.
+    arma::Mat<double> u0_;
+
 
     // -----------------------------------------------------------------------
     // Private Member Functions
@@ -209,7 +215,8 @@ public:
             const List<List<scalar>>& prescribed,
             const List<List<scalar>>& pretension,
             int    maxIter = 200,
-            double tol     = 1.0e-8
+            double tol     = 1.0e-8,
+            const List<List<scalar>>& u0 = List<List<scalar>>()
         );
 
         //- Construct from Istream

@@ -114,6 +114,14 @@ protected:
         //- List of cable actuator elements
         PtrList<actuatorCableLineElement> elements_;
 
+        //- Reference (undeformed) node positions for CableAnalysis.
+        //  Set once in createInitialElements() and passed unchanged to every
+        //  CableAnalysis call so that L0_ (unstressed element length) remains
+        //  constant and is not corrupted by warm-starting from deformed nodes.
+        //  Layout: nNodes = 2*nElements+1, matching the CANodes assembly in
+        //  evaluateDeformation().
+        List<vector> refNodePos_;
+
 
     // Protected Member Functions
 

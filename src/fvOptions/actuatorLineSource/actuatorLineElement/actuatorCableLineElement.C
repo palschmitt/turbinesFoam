@@ -72,7 +72,6 @@ Foam::fv::actuatorCableLineElement::actuatorCableLineElement
     cableFluidDensity_(dict.lookupOrDefault<scalar>("CableFluidDensity", 1025.0)),
     gravity_(dict.lookupOrDefault<vector>("CableGravity", vector(0, 0, -9.81))),
     buoyancyForce_(vector::zero),
-    structforceVector_(vector::zero),
     positionInMesh_(true)
 {
     // Override defaults with dictionary values if present
@@ -129,9 +128,6 @@ Foam::scalar Foam::fv::actuatorCableLineElement::cableDragCoeff() const
 const Foam::List<int>& Foam::fv::actuatorCableLineElement::cableRestraints() const
 { return cableRestraints_; }
 
-const Foam::vector& Foam::fv::actuatorCableLineElement::structforce() const
-{ return structforceVector_; }
-
 Foam::scalar Foam::fv::actuatorCableLineElement::cableDiameter() const
 { return cableDiameter_; }
 
@@ -172,13 +168,6 @@ void Foam::fv::actuatorCableLineElement::setDeformation(vector d)
     if (debug)
         Info<< "Changing deformation of " << name_ << " from " << deformation_ << " to " << d << endl;
     deformation_ = d;
-}
-
-void Foam::fv::actuatorCableLineElement::setStructForce(vector sf)
-{
-    if (debug)
-        Info<< "Changing structforce of " << name_ << " from " << structforceVector_ << " to " << sf << endl;
-    structforceVector_ = sf;
 }
 
 void Foam::fv::actuatorCableLineElement::setPosition(vector newPos)
@@ -243,7 +232,6 @@ void Foam::fv::actuatorCableLineElement::rotate
 
     // Rotate structural data
     deformation_       = RM & deformation_;
-    structforceVector_ = RM & structforceVector_;
     cableForce_        = RM & cableForce_;
 
     if (rotateVelocity)
@@ -398,11 +386,13 @@ void Foam::fv::actuatorCableLineElement::calculateForce
 
 
 // --- addSup overrides ---
-// The base class addSup calls calculateForce then applyForceField in sequence.
-// applyForceField calls calcProjectionEpsilon, which issues a FatalError if the
-// element position is not in any mesh cell.  For cable elements this is a valid
-// condition (anchor nodes, out-of-domain segments).  We override addSup to
-// skip applyForceField when calculateForce already flagged positionInMesh_=false.
+// calculateForce() is now called by actuatorCableLineSource::addSup()
+// BEFORE these per-element addSup() calls, so the force state is already
+// current.  We only need to apply the force to the field here.
+// applyForceField calls calcProjectionEpsilon, which issues a FatalError
+// if the element position is not in any mesh cell.  positionInMesh_ was
+// already set correctly by the preceding calculateForce() call, so we
+// simply gate on it.
 
 void Foam::fv::actuatorCableLineElement::addSup
 (
@@ -410,8 +400,6 @@ void Foam::fv::actuatorCableLineElement::addSup
     volVectorField& forceField
 )
 {
-    const volVectorField& Uin(eqn.psi());
-    calculateForce(Uin);
     if (positionInMesh_)
         applyForceField(forceField);
 }
@@ -424,8 +412,6 @@ void Foam::fv::actuatorCableLineElement::addSup
     volVectorField& forceField
 )
 {
-    const volVectorField& Uin(eqn.psi());
-    calculateForce(Uin);
     if (positionInMesh_)
     {
         applyForceField(forceField);

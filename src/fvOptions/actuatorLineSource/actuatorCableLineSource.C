@@ -280,6 +280,19 @@ void Foam::fv::actuatorCableLineSource::createInitialElements()
         elements_.set(i, elem);
         elements_[i].setVelocity(initialVelocity);
     }
+
+    // Store the undeformed reference node positions once.
+    // These are passed to CableAnalysis every time step as the mesh nodes
+    // so that L0_ (unstressed element length) stays constant regardless of
+    // how much the cable has deformed.
+    const int nNodesRef = 2*nElements_ + 1;
+    refNodePos_.setSize(nNodesRef);
+    refNodePos_[0] = elements_[0].P1();
+    forAll(elements_, i)
+    {
+        refNodePos_[2*i + 1] = elements_[i].position();
+        refNodePos_[2*i + 2] = elements_[i].P2();
+    }
 }
 
 
@@ -317,40 +330,94 @@ void Foam::fv::actuatorCableLineSource::evaluateDeformation()
     for (int k = 0; k < nNodes; k++)
         CARestraints[k] = List<int>(3, 0);
 
-    // --- First node (P1 of element 0) ---
-    vector P1first = elements_[0].P1();
-    sv[0] = P1first.x(); sv[1] = P1first.y(); sv[2] = P1first.z();
-    CANodes[0]      = sv;
-    CALoads[0]      = List<scalar>(3, 0.0);
-    CAPrescribed[0] = List<scalar>(3, 0.0);
+    // Pre-initialise all load and prescribed rows to zero.
+    // The element loop uses += to accumulate force contributions from
+    // adjacent elements onto shared nodes, so a clean zero baseline is
+    // required before the loop begins.
+    for (int k = 0; k < nNodes; k++)
+    {
+        CALoads[k]      = List<scalar>(3, 0.0);
+        CAPrescribed[k] = List<scalar>(3, 0.0);
+    }
+
+    // --- Assemble CableAnalysis node positions from undeformed reference ---
+    // IMPORTANT: always pass the original undeformed geometry as CANodes so
+    // that L0_ inside CableAnalysis remains constant across time steps.
+    // The warm-start u0 carries the accumulated displacement from all previous
+    // steps; Newton-Raphson then finds only the *correction* needed for the
+    // current load state.
+    for (int k = 0; k < nNodes; k++)
+    {
+        sv[0] = refNodePos_[k].x();
+        sv[1] = refNodePos_[k].y();
+        sv[2] = refNodePos_[k].z();
+        CANodes[k] = sv;
+    }
+
+    // --- Build warm-start displacement u0 from accumulated element deformations ---
+    // deformation() stores the total displacement of each element mid-node
+    // accumulated over all previous time steps.  Reconstruct the full nodal
+    // displacement vector for CableAnalysis by interpolating end-node values.
+    List<List<scalar>> CAu0(nNodes);
+    for (int k = 0; k < nNodes; k++)
+        CAu0[k] = List<scalar>(3, 0.0);
 
     forAll(elements_, i)
     {
-        // --- Mid-node (element centroid) ---
-        vector midPos = elements_[i].position();
-        sv[0] = midPos.x(); sv[1] = midPos.y(); sv[2] = midPos.z();
-        CANodes[2*i + 1] = sv;
+        const vector& d = elements_[i].deformation();
+        // Mid-node: use stored mid-node deformation directly
+        CAu0[2*i + 1][0] = d.x();
+        CAu0[2*i + 1][1] = d.y();
+        CAu0[2*i + 1][2] = d.z();
+        // End-node: average of this element's mid-node and next element's
+        // mid-node (or the last element's mid-node for the tip)
+        if (i < nElements_ - 1)
+        {
+            const vector& dn = elements_[i+1].deformation();
+            CAu0[2*i + 2][0] = 0.5*(d.x() + dn.x());
+            CAu0[2*i + 2][1] = 0.5*(d.y() + dn.y());
+            CAu0[2*i + 2][2] = 0.5*(d.z() + dn.z());
+        }
+        else
+        {
+            // Tip node: extrapolate from last mid-node
+            CAu0[2*i + 2][0] = d.x();
+            CAu0[2*i + 2][1] = d.y();
+            CAu0[2*i + 2][2] = d.z();
+        }
+    }
+    // Root node (index 0): extrapolate from first element mid-node
+    // (it is fixed if restrained, so u0_ at those DOF is overridden by
+    // applyPrescribed in CableAnalysis; safe to set here anyway)
+    {
+        const vector& d0 = elements_[0].deformation();
+        CAu0[0][0] = d0.x();
+        CAu0[0][1] = d0.y();
+        CAu0[0][2] = d0.z();
+    }
 
-        // --- End-node (P2) ---
-        vector P2pos = elements_[i].P2();
-        sv[0] = P2pos.x(); sv[1] = P2pos.y(); sv[2] = P2pos.z();
-        CANodes[2*i + 2] = sv;
+    forAll(elements_, i)
+    {
 
-        // --- Loads at mid-node: incremental hydrodynamic drag ---
-        // Use (current fluid force - previously applied structural force)
-        // so the FEA sees only the increment, consistent with the Bernoulli
-        // implementation.
-        vector dF = elements_[i].cableForce() - elements_[i].structforce();
-        sv[0] = dF.x(); sv[1] = dF.y(); sv[2] = dF.z();
+        // --- Loads: distribute element force between mid-node and end-node ---
+        // Pass the total current hydrodynamic+buoyancy force (not an
+        // increment).  CableAnalysis receives the full load state each call
+        // so there is no accumulated error from subtracting a stale baseline.
+        // The element force is split 50/50 between the mid-node (2*i+1) and
+        // the P2 end-node (2*i+2) following a consistent lumped-mass scheme:
+        // each sub-element shares half the parent element's resultant.
+        vector F = elements_[i].cableForce();
+        sv[0] = 0.5*F.x(); sv[1] = 0.5*F.y(); sv[2] = 0.5*F.z();
         CALoads[2*i + 1] = sv;
-        CALoads[2*i + 2] = List<scalar>(3, 0.0); // zero at end-node
-
-        // Save current force as the new "structural" baseline
-        elements_[i].setStructForce(elements_[i].cableForce());
-
-        // --- Prescribed displacements: zero everywhere ---
-        CAPrescribed[2*i + 1] = List<scalar>(3, 0.0);
-        CAPrescribed[2*i + 2] = List<scalar>(3, 0.0);
+        // End-node accumulates contributions from adjacent elements; add here
+        // (it was initialised to zero above; the next element's loop will also
+        // add its 0.5*F contribution to node 2*i+2 as its own mid-node entry,
+        // so no double-counting occurs for interior nodes).
+        sv[0] = 0.5*F.x(); sv[1] = 0.5*F.y(); sv[2] = 0.5*F.z();
+        List<scalar>& endLoad = CALoads[2*i + 2];
+        endLoad[0] += sv[0];
+        endLoad[1] += sv[1];
+        endLoad[2] += sv[2];
 
         // --- Element connectivity ---
         List<int> con(2);
@@ -396,7 +463,8 @@ void Foam::fv::actuatorCableLineSource::evaluateDeformation()
         CAPrescribed,
         CAPretension,
         caMaxIter,
-        caTol
+        caTol,
+        CAu0
     );
 
     List<List<scalar>> deformations = CA.nodedispList();
@@ -406,16 +474,51 @@ void Foam::fv::actuatorCableLineSource::evaluateDeformation()
     // Update element positions from deformed nodes
     // ------------------------------------------------------------------
 
-    // Compute new absolute node positions
+    // deformations[] from CableAnalysis is the TOTAL displacement from the
+    // undeformed reference geometry (because CANodes = refNodePos_).
+    // Clamp the displacement change from the previous step to prevent any
+    // element mid-node from jumping more than maxDispFraction*spanLength
+    // in a single time step.  This stops out-of-mesh errors on the first
+    // loaded step when the static equilibrium position is far from reference.
+    scalar maxDispFraction =
+        coeffs_.lookupOrDefault<scalar>("maxDispFraction", 0.5);
+
     List<vector> newNodePos(nNodes);
     forAll(newNodePos, k)
     {
-        newNodePos[k] = vector
+        // Total displacement this step
+        vector dTotal
         (
-            CANodes[k][0] + deformations[k][0],
-            CANodes[k][1] + deformations[k][1],
-            CANodes[k][2] + deformations[k][2]
+            deformations[k][0],
+            deformations[k][1],
+            deformations[k][2]
         );
+
+        // Previous total displacement at this node (reconstruct from elements)
+        vector dPrev(vector::zero);
+        if (k == 0)
+        {
+            dPrev = elements_[0].deformation(); // root node approximation
+        }
+        else
+        {
+            // Find the element that owns this node as its mid or end node
+            label elemIdx = (k - 1) / 2;
+            if (elemIdx < nElements_)
+                dPrev = elements_[elemIdx].deformation();
+        }
+
+        // Step displacement = total - previous
+        vector dStep = dTotal - dPrev;
+
+        // Clamp step size per element span length
+        label ownerElem = min(label((k > 0) ? (k-1)/2 : 0), nElements_-1);
+        scalar maxStep  = maxDispFraction * elements_[ownerElem].spanLength();
+        scalar stepMag  = mag(dStep);
+        if (stepMag > maxStep && stepMag > VSMALL)
+            dStep *= maxStep / stepMag;
+
+        newNodePos[k] = refNodePos_[k] + dPrev + dStep;
     }
 
     forAll(elements_, i)
@@ -424,11 +527,12 @@ void Foam::fv::actuatorCableLineSource::evaluateDeformation()
         elements_[i].setPosition(newNodePos[2*i + 1]);
         elements_[i].setP2      (newNodePos[2*i + 2]);
 
-        // Accumulate total deformation at mid-node
+        // Store the total displacement of this element's mid-node.
+        // CableAnalysis returns total displacement from reference, so we
+        // set deformation_ directly rather than accumulating additively.
         elements_[i].setDeformation
         (
-            elements_[i].deformation()
-          + vector
+            vector
             (
                 deformations[2*i + 1][0],
                 deformations[2*i + 1][1],
@@ -523,6 +627,19 @@ void Foam::fv::actuatorCableLineSource::addSup
     const label fieldI
 )
 {
+    // Reset the motion-time guard so evaluateDeformation() always runs.
+    // The guard exists to prevent duplicate solves when addSup is called
+    // multiple times within the same time step (e.g. PIMPLE outer loops).
+    // We control the call order here, so we reset it to -GREAT to guarantee
+    // the structural solve runs with the freshly computed forces.
+    lastMotionTime_ = -GREAT;
+
+    // Step 1: compute hydrodynamic forces from current velocity field.
+    const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
+    forAll(elements_, i)
+        elements_[i].calculateForce(U);
+
+    // Step 2: structural solve with current forces.
     evaluateDeformation();
 
     forceField_ *= dimensionedScalar("zero", forceField_.dimensions(), 0.0);
@@ -530,8 +647,6 @@ void Foam::fv::actuatorCableLineSource::addSup
 
     forAll(elements_, i)
     {
-        const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
-        elements_[i].calculateForce(U);
         elements_[i].addSup(eqn, forceField_);
         force_ += elements_[i].force();
     }
@@ -552,14 +667,16 @@ void Foam::fv::actuatorCableLineSource::addSup
     const label fieldI
 )
 {
-    evaluateDeformation();
-
+    // Forces must be current before the structural solve.
+    lastMotionTime_ = -GREAT;
     const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
     forAll(elements_, i)
-    {
         elements_[i].calculateForce(U);
+
+    evaluateDeformation();
+
+    forAll(elements_, i)
         elements_[i].addTurbulence(eqn, fieldNames_[fieldI]);
-    }
 }
 
 
@@ -570,15 +687,21 @@ void Foam::fv::actuatorCableLineSource::addSup
     const label fieldI
 )
 {
+    lastMotionTime_ = -GREAT;
+
+    // Step 1: compute hydrodynamic forces from current velocity field.
+    const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
+    forAll(elements_, i)
+        elements_[i].calculateForce(U);
+
+    // Step 2: structural solve with current forces.
     evaluateDeformation();
 
     forceField_ *= dimensionedScalar("zero", forceField_.dimensions(), 0.0);
     force_ = vector::zero;
 
-    const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
     forAll(elements_, i)
     {
-        elements_[i].calculateForce(U);
         elements_[i].addSup(rho, eqn, forceField_);
         force_ += elements_[i].force();
     }

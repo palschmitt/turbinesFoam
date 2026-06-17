@@ -318,11 +318,14 @@ void Foam::CableAnalysis::solve()
     // Newton-Raphson iteration for geometrically nonlinear cable analysis
     // -----------------------------------------------------------------------
 
-    // Current displacement (global, all DOF)
-    arma::Mat<double> u;
-    u.zeros(totdof_, 1);
+    // Current displacement (global, all DOF).
+    // Initialise from warm-start vector u0_ (supplied by caller from the
+    // previous converged step).  This prevents large first-step overshoots
+    // when gravity / buoyancy creates an O(T0) residual from u=0.
+    arma::Mat<double> u = u0_;
 
-    // Apply prescribed displacements immediately
+    // Apply prescribed displacements at restrained DOF, overriding whatever
+    // u0_ has at those positions.
     for (int id = 0; id < totdof_; id++)
     {
         int pos = order2_(id);
@@ -506,7 +509,8 @@ Foam::CableAnalysis::CableAnalysis
     const List<List<scalar>>& prescribed,
     const List<List<scalar>>& pretension,
     int    maxIter,
-    double tol
+    double tol,
+    const List<List<scalar>>& u0
 )
 :
     nnode_(2),
@@ -525,6 +529,17 @@ Foam::CableAnalysis::CableAnalysis
     loads_       = List2Mat(loads);
     prescribed_  = List2Mat(prescribed);
     pretension_  = List2Mat(pretension);
+
+    // Warm-start displacement.  If u0 is supplied and has the right size,
+    // store it; otherwise initialise to zero.
+    u0_.zeros(totdof_, 1);
+    if (u0.size() == nnodes_)
+    {
+        for (int in = 0; in < nnodes_; in++)
+            if (u0[in].size() == ndof_)
+                for (int id = 0; id < ndof_; id++)
+                    u0_(in*ndof_ + id) = u0[in][id];
+    }
 
     // Build DOF ordering from restraints
     neworder();
