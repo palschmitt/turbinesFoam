@@ -157,6 +157,22 @@ protected:
         //  Recomputed each call to calculateForce(); stored for VTK output.
         vector buoyancyForce_;
 
+        //- Reference (unstressed) span length [m].
+        //  Set once at construction from the initial P1–P2 distance and used
+        //  for buoyancy volume and projected drag area in calculateForce().
+        //  Using the deformed span length causes a divergent feedback loop:
+        //  buoyancy grows with stretch, driving further displacement.
+        scalar refSpanLength_;
+
+        //- Reference (unstressed) span direction (unit vector along P2-P1).
+        //  Set once after construction from the initial element geometry and
+        //  used in calculateForce() to project the inflow velocity onto the
+        //  cable axis.  Using the deformed spanDirection_ after a buoyancy-
+        //  driven catenary deformation introduces a phantom drag component:
+        //  the span rotates away from the flow direction, relNormal picks up
+        //  the full inflow velocity, and drag diverges exponentially.
+        vector refSpanDirection_;
+
         //- True when this element's position_ was found in the CFD mesh on
         //  the most recent calculateForce() call.  Set before applyForceField
         //  is called so that applyForceField can skip the base-class
@@ -237,6 +253,12 @@ public:
             //- Return restraint flags (3 entries)
             const List<int>& cableRestraints() const;
 
+            //- Return reference (unstressed) span length
+            scalar refSpanLength() const;
+
+            //- Return reference (unstressed) span direction
+            const vector& refSpanDirection() const;
+
             //- Return cable outer diameter
             scalar cableDiameter() const;
 
@@ -275,6 +297,12 @@ public:
 
             //- Set span length
             void setSpanLength(scalar spanLength);
+
+            //- Set reference (unstressed) span length — call once after construction
+            void setRefSpanLength(scalar refSpanLength);
+
+            //- Set reference (unstressed) span direction — call once after construction
+            void setRefSpanDirection(vector refSpanDir);
 
             //- Set element tension
             void setTension(scalar tension);

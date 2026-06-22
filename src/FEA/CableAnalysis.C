@@ -91,17 +91,24 @@ void Foam::CableAnalysis::updateElemGeom(const arma::Mat<double>& u)
     }
 
     // Guard: deformed length collapsing to zero (e.g. Newton overshoot).
-    // Clamp L_ to 1 % of L0_ so direction cosines remain finite.
-    // The resulting large compressive strain will make T_ strongly negative,
-    // the element will be treated as slack, and the geometric stiffness will
-    // resist further collapse on the next iteration.
     if (L_ < 1.0e-2 * L0_)
         L_ = 1.0e-2 * L0_;
 
-    // Unit direction cosines (deformed)
+    // Unit direction cosines (deformed).
+    // Clamp values that are within floating-point noise of zero to exactly
+    // zero.  For a vertical cable e = (0,0,1); fp arithmetic gives Cx_,Cy_
+    // values of ~1e-16.  With a small stabiliser stiffness those multiply
+    // up to produce a phantom transverse residual that Newton-Raphson divides
+    // by a tiny kGeo, yielding a massive spurious displacement.  Clamping
+    // here removes the source of the noise rather than trying to suppress
+    // its downstream effects.
+    double dv0norm = std::max(L0_, 1.0e-14);
     Cx_ = dv(0) / L_;
     Cy_ = dv(1) / L_;
     Cz_ = dv(2) / L_;
+    if (std::abs(Cx_) < 1.0e-10 / dv0norm) Cx_ = 0.0;
+    if (std::abs(Cy_) < 1.0e-10 / dv0norm) Cy_ = 0.0;
+    if (std::abs(Cz_) < 1.0e-10 / dv0norm) Cz_ = 0.0;
 
     // Current tension: elastic stretch + pretension
     double T0 = pretension_(ielem_, 0);
@@ -115,27 +122,35 @@ void Foam::CableAnalysis::elemStiffness()
     // --- Direction cosine vector e = [Cx Cy Cz]
     arma::vec e = {Cx_, Cy_, Cz_};
 
-    // Guard: L_ should never be zero here (updateElemGeom clamps it), but
-    // protect the divisions anyway.
+    // Guard: L_ should never be zero here (updateElemGeom clamps it).
     double Lsafe = std::max(L_, 1.0e-14);
 
     // --- Elastic stiffness contribution (axial only)
-    //  k_e = (EA/L) * [e*e^T , -e*e^T ; -e*e^T , e*e^T]
     double kAxial = E_ * A_ / Lsafe;
 
-    // --- Geometric (stress) stiffness contribution
-    //  k_g = (T/L) * [ I - e*e^T , -(I - e*e^T) ; -(I-e*e^T) , (I-e*e^T) ]
-    // For a tension-only cable we zero k_g if cable is slack (T_ < 0).
-    // A small stabilisation stiffness kSlack is retained to avoid singularity.
+    // --- Geometric (stress) stiffness
+    // For a slack element (T_ <= 0) remove the elastic contribution (no
+    // compression) and replace the geometric stiffness with a stabiliser.
+    //
+    // The stabiliser must be large enough that floating-point noise in the
+    // direction cosines does not produce a large phantom residual in the
+    // transverse directions.  For a vertical cable Cx_ ≈ Cy_ ≈ 1e-16 after
+    // clamping; the transverse internal force from a taut element is
+    // T * Cx ~ T * 1e-16, and the transverse stiffness must resist that.
+    // Using kStab = 1e-4 * EA/L0 gives du_transverse = 1e-16*T / (1e-4*EA/L)
+    // ~ 1e-12 * T*L/EA — bounded and negligible.
+    //
+    // Using 1e-10 (the old value) gives du_transverse ~ 1e-6 * T*L/EA which
+    // for T=1e4 N, EA=1e6 N, L=1 m is 1e-2 m per step — visible divergence.
     double kGeo = 0.0;
     if (T_ > 0.0)
+    {
         kGeo = T_ / Lsafe;
+    }
     else
     {
-        // Slack cable: remove elastic contribution too (no compression)
         kAxial = 0.0;
-        // Tiny stabiliser keeps the system non-singular
-        kGeo = 1.0e-10 * E_ * A_ / std::max(L0_, 1.0e-14);
+        kGeo   = 1.0e-4 * E_ * A_ / std::max(L0_, 1.0e-14);
     }
 
     arma::mat I3 = arma::eye(3, 3);

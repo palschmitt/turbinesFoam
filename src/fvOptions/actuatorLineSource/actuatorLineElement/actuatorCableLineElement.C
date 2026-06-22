@@ -72,6 +72,8 @@ Foam::fv::actuatorCableLineElement::actuatorCableLineElement
     cableFluidDensity_(dict.lookupOrDefault<scalar>("CableFluidDensity", 1025.0)),
     gravity_(dict.lookupOrDefault<vector>("CableGravity", vector(0, 0, -9.81))),
     buoyancyForce_(vector::zero),
+    refSpanLength_(dict.lookupOrDefault<scalar>("spanLength", 1.0)),
+    refSpanDirection_(dict.lookupOrDefault<vector>("spanDirection", vector(0,1,0))),
     positionInMesh_(true)
 {
     // Override defaults with dictionary values if present
@@ -127,6 +129,12 @@ Foam::scalar Foam::fv::actuatorCableLineElement::cableDragCoeff() const
 
 const Foam::List<int>& Foam::fv::actuatorCableLineElement::cableRestraints() const
 { return cableRestraints_; }
+
+Foam::scalar Foam::fv::actuatorCableLineElement::refSpanLength() const
+{ return refSpanLength_; }
+
+const Foam::vector& Foam::fv::actuatorCableLineElement::refSpanDirection() const
+{ return refSpanDirection_; }
 
 Foam::scalar Foam::fv::actuatorCableLineElement::cableDiameter() const
 { return cableDiameter_; }
@@ -185,6 +193,16 @@ void Foam::fv::actuatorCableLineElement::setSpanDirection(vector spanDir)
 void Foam::fv::actuatorCableLineElement::setSpanLength(scalar spanLength)
 {
     spanLength_ = spanLength;
+}
+
+void Foam::fv::actuatorCableLineElement::setRefSpanLength(scalar refSpanLength)
+{
+    refSpanLength_ = refSpanLength;
+}
+
+void Foam::fv::actuatorCableLineElement::setRefSpanDirection(vector refSpanDir)
+{
+    refSpanDirection_ = refSpanDir;
 }
 
 void Foam::fv::actuatorCableLineElement::setTension(scalar t)
@@ -291,27 +309,27 @@ void Foam::fv::actuatorCableLineElement::calculateForce
 
     calculateInflowVelocity(Uin);
 
-    // Guard: if the inflow velocity is effectively zero (e.g. first
-    // iteration before the flow field is initialised) return immediately
-    // with zero force to avoid propagating NaN/Inf into the solver.
-    if (mag(inflowVelocity_) < VSMALL && mag(velocity_) < VSMALL)
-    {
-        forceVector_   = vector::zero;
-        cableForce_    = vector::zero;
-        buoyancyForce_ = vector::zero;
-        return;
-    }
-
     relativeVelocity_ = inflowVelocity_ - velocity_;
 
     // ------------------------------------------------------------------
     // 2. Hydrodynamic drag (cross-flow, Morison-style)
     // ------------------------------------------------------------------
 
-    // Unit span vector — guard against zero-length element
-    scalar magSpan = mag(spanDirection_);
-    vector spanUnit = (magSpan > VSMALL)
-                    ? spanDirection_ / magSpan
+    // Unit span vector for velocity projection.
+    // IMPORTANT: use the REFERENCE (undeformed) span direction, not the
+    // current deformed spanDirection_.  After a buoyancy-driven catenary
+    // deformation the deformed span is no longer aligned with the flow
+    // reference frame; projecting relative velocity onto it introduces a
+    // phantom normal-velocity component equal to the full inflow speed,
+    // producing a drag force O(rho*Cd*A*U^2) at every step regardless of
+    // the true cross-flow velocity.  That phantom drag then drives further
+    // lateral deformation, rotating the span further, compounding each step
+    // until the force diverges.  The reference span direction is the correct
+    // basis for drag because drag is a fluid-dynamic quantity and the fluid
+    // does not know or care that the cable has sagged.
+    scalar magRefSpan = mag(refSpanDirection_);
+    vector spanUnit = (magRefSpan > VSMALL)
+                    ? refSpanDirection_ / magRefSpan
                     : vector(0, 0, 1);
 
     // Velocity component normal to span
@@ -325,8 +343,12 @@ void Foam::fv::actuatorCableLineElement::calculateForce
                     ? cableDiameter_
                     : max(chordLength_, VSMALL);
 
-    // Guard span length
-    scalar spanLen = max(spanLength_, VSMALL);
+    // Use the REFERENCE (unstressed) span length for all area/volume
+    // calculations.  Using the deformed span length creates a divergent
+    // feedback loop: buoyancy and drag grow with stretch, driving further
+    // displacement, further stretch, and so on.  The cable material volume
+    // is conserved, so reference length is the physically correct choice.
+    scalar spanLen = max(refSpanLength_, VSMALL);
     scalar projectedArea = diameter * spanLen;
 
     // Local fluid density: sample 'rho' field if present, else use
@@ -341,6 +363,7 @@ void Foam::fv::actuatorCableLineElement::calculateForce
             rhoFluid = max(rhoField[cellI], VSMALL);
     }
 
+    // Drag: only non-zero when there is a meaningful relative velocity.
     vector dragForce = vector::zero;
     if (magRelNormal > VSMALL)
     {
@@ -352,7 +375,11 @@ void Foam::fv::actuatorCableLineElement::calculateForce
     // ------------------------------------------------------------------
     // 3. Net buoyancy (buoyancy - self-weight)
     //    F_net = -(rho_f - rho_c) * g * V
-    //    V = pi/4 * d^2 * L_span
+    //    V = pi/4 * d^2 * L_ref
+    //
+    // Buoyancy is computed unconditionally — it does not depend on flow
+    // velocity.  The previous guard (return zero when |U|~0) suppressed
+    // buoyancy at startup, then it appeared as a step-change.
     // ------------------------------------------------------------------
 
     scalar pi = Foam::constant::mathematical::pi;
