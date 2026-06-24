@@ -391,9 +391,24 @@ void Foam::fv::actuatorCableLineElement::calculateForce
     // 4. Combine
     // ------------------------------------------------------------------
 
-    forceVector_ = dragForce + buoyancyForce_;
-    cableForce_  = forceVector_;
-
+	// Feed back ONLY the hydrodynamic drag to the flow field; keep the full
+	// external load (drag + buoyancy) for the structural solve.
+	forceVector_ = dragForce;
+	cableForce_  = dragForce + buoyancyForce_;
+	
+	
+	Info<< "time = " << mesh_.time().value() << nl
+    << "name = " << name_ << nl
+    << "position = " << position_ << nl
+    << "spanDirection = " << spanDirection_ << nl
+    << "velocity_ = " << velocity_ << nl
+    << "sampled inflow (before projection) = " << inflowVelocity_ << nl
+    << "inflow after projection = " << inflowVelocity_ << nl
+    << "relativeVelocity_ = " << relativeVelocity_ << nl
+    << "mag(relativeVelocity_) = " << mag(relativeVelocity_) << nl
+    << "cableForce = " << cableForce() << endl;
+    
+    
     if (debug)
     {
         Info<< "actuatorCableLineElement " << name_ << ":" << nl

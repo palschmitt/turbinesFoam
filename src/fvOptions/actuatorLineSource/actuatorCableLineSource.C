@@ -978,17 +978,26 @@ void Foam::fv::actuatorCableLineSource::addSup
     forAll(elements_, i)
     {
         elements_[i].addSup(rho, eqn, forceField_);
+        // After the cable-element fix, force() is the CFD feedback force
+        // (hydrodynamic drag only), not the full structural load.
         force_ += elements_[i].force();
     }
     scalar sumCableForceMag = 0.0;
     vector sumCableForce(vector::zero);
+    vector sumBuoyancyForce(vector::zero);
+    vector sumFeedbackForce(vector::zero);
     forAll(elements_, i)
     {
         sumCableForce += elements_[i].cableForce();
         sumCableForceMag += mag(elements_[i].cableForce());
+        sumBuoyancyForce += elements_[i].buoyancyForce();
+        sumFeedbackForce += elements_[i].force();
     }
-    Info<< "Force on cable " << name_ << ": applied=" << force_
+    Info<< "Force on cable " << name_
+        << ": appliedFeedback=" << force_
         << "  structuralInput(sum cableForce)=" << sumCableForce
+        << "  sumBuoyancyForce=" << sumBuoyancyForce
+        << "  sumFeedbackForce=" << sumFeedbackForce
         << "  sum|cableForce|=" << sumCableForceMag << endl;
     if (forceField_.dimensions() != eqn.dimensions()/dimVolume)
         forceField_.dimensions().reset(eqn.dimensions()/dimVolume);
