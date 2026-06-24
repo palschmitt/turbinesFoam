@@ -104,6 +104,8 @@ protected:
 
         //- Cable tip / end anchor position (last geometry point)
         vector tipLocation_;
+        
+        List<vector> prevCableForce_;
 
         //- Total resultant hydrodynamic force on the cable
         vector force_;

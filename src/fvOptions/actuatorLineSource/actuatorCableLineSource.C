@@ -215,8 +215,8 @@ void Foam::fv::actuatorCableLineSource::createInitialElements()
             // Build a minimal flat polar so the element does not fatal
             dictionary dummyProfile;
             List<List<scalar>> dummyData(2);
-            dummyData[0] = {-180.0, 0.0, 0.0};
-            dummyData[1] = {  180.0, 0.0, 0.0};
+            dummyData[0] = {-180.0, 0.0, 1.0};
+            dummyData[1] = {  180.0, 0.0, 1.0};
             dummyProfile.add("data", dummyData);
             dict.add("profileData", dummyProfile);
         }
