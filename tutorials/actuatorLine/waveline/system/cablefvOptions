@@ -1,0 +1,130 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     |                                                 |
+|   \\  /    A nd           |                                                 |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      fvOptions;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//
+// Single vertical cable, bottom-anchored at z = 0, rising to z = -0.8 m
+// (0.8 m depth).  The cable is positively buoyant (rho_cable < rho_fluid)
+// so it stands approximately vertical under combined buoyancy and tension.
+//
+// Geometry
+//   Bottom anchor   : (0  0   0.0)   -- fixed in x, y, z
+//   Top free end    : (0  0  0.8)   -- free to move (restrained = 0)
+//   Span direction  : (0  0  -1)     -- from anchor upward toward surface
+//                                       (convention: points from node 1 -> 2)
+//   Diameter        : 0.03 m
+//   Total length    : 0.8 m
+//   nElements       : 20  (each element spans 0.04 m)
+//
+// Structural
+//   Material        : buoyant synthetic rope
+//     EA            : 5e4 N       (typical for 30mm braided polyester)
+//     Pretension    : 10 N        (small initial tension to avoid slack at t=0)
+//     rho_cable     : 900 kg/m3   (slightly less dense than seawater -> floats)
+//
+// Fluid environment
+//   rho_fluid       : 1025 kg/m3  (seawater; overridden by 'rho' field if present)
+//   Gravity         : (0 0 -9.81) (read from constant/g if present)
+//   Cd              : 1.0         (cylinder cross-flow drag coefficient)
+//
+// Restraints (per node, 3 DOF: x y z)
+//   Bottom anchor   : (1 1 1)  -- fully fixed
+//   Top free end    : (0 0 0)  -- free to move in all directions
+//
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+buoyantCable
+{
+    type            actuatorCableLineSource;
+    active          on;
+	
+    actuatorCableLineSourceCoeffs
+    {
+        fieldNames      ( U );
+        freeStreamVelocity (1 0 0);
+	selectionMode   cellSet;
+        cellSet         cableRegion;    // create with topoSet if needed;
+                                        // or use "all" for a simple domain
+
+        nElements       2;
+
+        // ------------------------------------------------------------------
+        // elementGeometry
+        //   One row per geometry point (2 points = 1 segment for a straight
+        //   cable).  The 20 elements are distributed uniformly between them.
+        //
+        //   Column layout:
+        //     [0]  (x y z)            -- point position
+        //     [1]  (sx sy sz)         -- span direction at this point
+        //     [2]  (chord)            -- effective diameter used by base class
+        //     [3]  (crx cry crz)      -- chord reference direction (unused for
+        //                                cables; set to span direction)
+        //     [4]  (chordMount)       -- unused for cables; set to 0.5
+        //     [5]  (pitch)            -- unused for cables; set to 0
+        //     [6]  (EA  T0)           -- axial stiffness [N], pretension [N]
+        //     [7]  (Cd  d  rho_c  rho_f) -- drag coeff, diameter [m],
+        //                                   cable density [kg/m3],
+        //                                   fluid density [kg/m3]
+        //     [8]  (r1 r2 r3)         -- restraints (1=fixed, 0=free) per DOF
+        // ------------------------------------------------------------------
+
+        elementGeometry
+        (
+            //  [0] position       [1] spanDir      [2] chord  [3] chordRef    [4]   [5]  [6] EA    T0    [7] Cd    d      rhoC   rhoF    [8] restraints
+            (   (0.6  0.2   0.0)    (0  0  -1)    (0.03)  (0  0  -1)    (0.5) (0)  (5e4  0)  (1.0  0.03  300  1000)  (1 1 1)  )   // bottom anchor -- fully fixed
+            (   (0.6  0.2   0.4)    (0  0  -1)    (0.03)  (0  0  -1)    (0.5) (0)  (5e4  0)  (1.0  0.03  300  1000)  (0 0 0)  )   // top end
+        );
+
+        elementProfiles
+        (
+            cable
+        );
+
+        profileData
+        {
+            cable
+            {
+                data
+                (
+                //  alpha    Cl      Cd
+                    (-180    0.0     0.0)
+                    ( 180    0.0     0.0)
+                );
+            }
+        }
+
+
+        // Gravity vector -- also read from constant/g if that file exists.
+        // Listed here as a fallback for solvers that do not write constant/g.
+        CableGravity        ( 0  0  -9.81 );
+
+        // Velocity sampling
+        velocitySampleRadius    0.03;   // sample radius = 1 diameter
+        nVelocitySamples        10;
+
+        // Output
+        writePerf               true;
+        writeVTK                true;
+
+        // Newton-Raphson solver settings (passed to CableAnalysis)
+        // Defaults are maxIter=200, tol=1e-8; override here if needed.
+        // CableMaxIter         200;
+        CableTolerance       1e-5;
+    debugCableState true;
+
+    }
+}
+
+// ************************************************************************* //

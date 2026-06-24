@@ -570,6 +570,7 @@ for (label k = 0; k < nNodes; ++k)
             << "Non-finite meanTension before slack/FEA branch: " << meanTension
             << abort(FatalError);
     }
+    /*
     if (meanTension < slackTol)
     {
         // Anchor positions: use restrained end-nodes.
@@ -697,6 +698,7 @@ for (label k = 0; k < nNodes; ++k)
         lastMotionTime_ = t;
         return;
     }
+    */
     // ------------------------------------------------------------------
     // Solve (taut cable — FEA Newton-Raphson)
     // ------------------------------------------------------------------
