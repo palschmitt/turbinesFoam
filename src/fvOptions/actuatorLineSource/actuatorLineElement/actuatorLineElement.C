@@ -667,25 +667,31 @@ Foam::scalar Foam::fv::actuatorLineElement::normalRefForce()
     return 0.5 * chordLength_ * normalRefCoefficient()
         * magSqr(relativeVelocity_);
 }
-
-
 Foam::scalar Foam::fv::actuatorLineElement::inflowRefAngle()
 {
-    // Calculate inflow velocity angle in degrees (AFTAL Phi)
-    scalar inflowVelAngleRad = acos
-    (
+    scalar relVelMag   = mag(relativeVelocity_);
+    scalar chordRefMag = mag(chordRefDirection_);
+
+    if (relVelMag <= VSMALL || chordRefMag <= VSMALL)
+    {
+        return 0.0;
+    }
+
+    scalar cosArg =
         (-relativeVelocity_ & chordRefDirection_)
-        / (mag(relativeVelocity_) * mag(chordRefDirection_))
-    );
-    return radToDeg(inflowVelAngleRad);
+      / (relVelMag * chordRefMag);
+
+    cosArg = Foam::max(-1.0, Foam::min(1.0, cosArg));
+
+    return radToDeg(acos(cosArg));
 }
+
 
 
 const Foam::scalar& Foam::fv::actuatorLineElement::rootDistance()
 {
     return rootDistance_;
 }
-
 
 void Foam::fv::actuatorLineElement::calculateForce
 (
@@ -694,9 +700,45 @@ void Foam::fv::actuatorLineElement::calculateForce
 {
     scalar pi = Foam::constant::mathematical::pi;
 
-    // Calculate unit vector normal to chord--span plane
+    // ------------------------------------------------------------------
+    // Basic geometry sanity checks
+    // ------------------------------------------------------------------
+    scalar spanMag2  = magSqr(spanDirection_);
+    scalar chordMag2 = magSqr(chordDirection_);
+
+    if (spanMag2 <= VSMALL)
+    {
+        FatalErrorIn("void actuatorLineElement::calculateForce(const volVectorField&)")
+            << "Zero or near-zero spanDirection for " << name_ << nl
+            << "  position      = " << position_ << nl
+            << "  spanDirection = " << spanDirection_ << nl
+            << abort(FatalError);
+    }
+
+    if (chordMag2 <= VSMALL)
+    {
+        FatalErrorIn("void actuatorLineElement::calculateForce(const volVectorField&)")
+            << "Zero or near-zero chordDirection for " << name_ << nl
+            << "  position       = " << position_ << nl
+            << "  chordDirection = " << chordDirection_ << nl
+            << abort(FatalError);
+    }
+
+    // Calculate vector normal to chord--span plane
     planformNormal_ = -chordDirection_ ^ spanDirection_;
-    planformNormal_ /= mag(planformNormal_);
+    scalar planformMag = mag(planformNormal_);
+
+    if (planformMag <= VSMALL)
+    {
+        FatalErrorIn("void actuatorLineElement::calculateForce(const volVectorField&)")
+            << "Degenerate actuator-line geometry for " << name_ << nl
+            << "  chordDirection = " << chordDirection_ << nl
+            << "  spanDirection  = " << spanDirection_ << nl
+            << "  (chord and span are parallel or invalid)" << nl
+            << abort(FatalError);
+    }
+
+    planformNormal_ /= planformMag;
 
     if (debug)
     {
@@ -712,25 +754,80 @@ void Foam::fv::actuatorLineElement::calculateForce
     // Find local flow velocity by interpolating to element location
     calculateInflowVelocity(Uin);
 
-    // Subtract spanwise component of inflow velocity
-    vector spanwiseVelocity = spanDirection_
-                            * (inflowVelocity_ & spanDirection_)
-                            / magSqr(spanDirection_);
+    // Remove spanwise component of inflow velocity safely
+    vector spanwiseVelocity =
+        spanDirection_ * (inflowVelocity_ & spanDirection_) / spanMag2;
     inflowVelocity_ -= spanwiseVelocity;
+
+    // Check chord length and viscosity before Reynolds number
+    if (chordLength_ <= VSMALL)
+    {
+        FatalErrorIn("void actuatorLineElement::calculateForce(const volVectorField&)")
+            << "Zero or near-zero chordLength for " << name_ << nl
+            << "  chordLength = " << chordLength_ << nl
+            << abort(FatalError);
+    }
+
+    if (nu_ <= VSMALL)
+    {
+        FatalErrorIn("void actuatorLineElement::calculateForce(const volVectorField&)")
+            << "Zero or near-zero viscosity nu for " << name_ << nl
+            << "  nu = " << nu_ << nl
+            << "Check transportProperties." << nl
+            << abort(FatalError);
+    }
 
     // Calculate relative velocity and Reynolds number
     relativeVelocity_ = inflowVelocity_ - velocity_;
-    Re_ = mag(relativeVelocity_)*chordLength_/nu_;
+    scalar relVelMag = mag(relativeVelocity_);
+    Re_ = relVelMag*chordLength_/nu_;
 
-    // Calculate angle of attack (radians)
-    scalar angleOfAttackRad = asin((planformNormal_ & relativeVelocity_)
-                            / (mag(planformNormal_)
-                            *  mag(relativeVelocity_)));
-    scalar angleOfAttackUncorrected = radToDeg(angleOfAttackRad);
+    // Geometric relative velocity for diagnostics/output
     relativeVelocityGeom_ = freeStreamVelocity_ - velocity_;
-    angleOfAttackGeom_ = asin((planformNormal_ & relativeVelocityGeom_)
-                       / (mag(planformNormal_)*mag(relativeVelocityGeom_)));
-    angleOfAttackGeom_ *= 180.0/pi;
+    scalar relVelGeomMag = mag(relativeVelocityGeom_);
+
+    // ------------------------------------------------------------------
+    // No usable relative flow -> zero aerodynamic force, no FPE
+    // ------------------------------------------------------------------
+    if (relVelMag <= VSMALL)
+    {
+        relativeVelocity_     = vector::zero;
+        relativeVelocityGeom_ = vector::zero;
+        Re_ = 0.0;
+        angleOfAttack_ = 0.0;
+        angleOfAttackGeom_ = 0.0;
+        liftCoefficient_ = 0.0;
+        dragCoefficient_ = 0.0;
+        momentCoefficient_ = 0.0;
+        forceVector_ = vector::zero;
+
+        if (debug)
+        {
+            Info<< "    relativeVelocity ~ 0 for " << name_
+                << ", setting force to zero." << endl;
+        }
+
+        return;
+    }
+
+    // Calculate angle of attack (radians) safely
+    scalar aoaArg = (planformNormal_ & relativeVelocity_) / relVelMag;
+    aoaArg = Foam::max(-1.0, Foam::min(1.0, aoaArg));
+
+    scalar angleOfAttackRad = asin(aoaArg);
+    scalar angleOfAttackUncorrected = radToDeg(angleOfAttackRad);
+
+    // Geometric AoA safely
+    if (relVelGeomMag > VSMALL)
+    {
+        scalar aoaGeomArg = (planformNormal_ & relativeVelocityGeom_) / relVelGeomMag;
+        aoaGeomArg = Foam::max(-1.0, Foam::min(1.0, aoaGeomArg));
+        angleOfAttackGeom_ = radToDeg(asin(aoaGeomArg));
+    }
+    else
+    {
+        angleOfAttackGeom_ = 0.0;
+    }
 
     // Apply flow curvature correction to angle of attack
     if (flowCurvatureActive_)
@@ -765,7 +862,7 @@ void Foam::fv::actuatorLineElement::calculateForce
     {
         dynamicStall_->correct
         (
-            mag(relativeVelocity_),
+            relVelMag,
             angleOfAttack_,
             liftCoefficient_,
             dragCoefficient_,
@@ -791,13 +888,27 @@ void Foam::fv::actuatorLineElement::calculateForce
     liftCoefficient_ *= endEffectFactor_;
 
     // Calculate force per unit density
-    scalar area = chordLength_ * spanLength_;
+    scalar area = chordLength_*spanLength_;
     scalar magSqrU = magSqr(relativeVelocity_);
+
     scalar lift = 0.5*area*liftCoefficient_*magSqrU;
     scalar drag = 0.5*area*dragCoefficient_*magSqrU;
+
+    vector dragDirection = relativeVelocity_/relVelMag;
+
     vector liftDirection = relativeVelocity_ ^ spanDirection_;
-    liftDirection /= mag(liftDirection);
-    vector dragDirection = relativeVelocity_/mag(relativeVelocity_);
+    scalar liftDirMag = mag(liftDirection);
+
+    if (liftDirMag <= VSMALL)
+    {
+        // Flow aligned with span direction -> no meaningful lift direction
+        liftDirection = vector::zero;
+    }
+    else
+    {
+        liftDirection /= liftDirMag;
+    }
+
     forceVector_ = lift*liftDirection + drag*dragDirection;
 
     if (debug)
@@ -807,6 +918,8 @@ void Foam::fv::actuatorLineElement::calculateForce
         Info<< "    force (per unit density): " << forceVector_ << endl;
     }
 }
+
+
 
 
 void Foam::fv::actuatorLineElement::rotate
