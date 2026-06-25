@@ -952,12 +952,11 @@ void Foam::fv::actuatorCableLineSource::addSup
     const label fieldI
 )
 {
-    // Forces must be current before the structural solve.
-    lastMotionTime_ = -GREAT;
-    const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
-    forAll(elements_, i)
-        elements_[i].calculateForce(U);
-    evaluateDeformation();
+    // The structural solve and force calculation are driven by the momentum
+    // addSup (vector overload), which OpenFOAM calls before this scalar one.
+    // Do NOT reset lastMotionTime_ here or re-run evaluateDeformation():
+    // that would repeat the FEA solve with identical loads, wasting cost and
+    // corrupting the warm-start displacement for the next time step.
     forAll(elements_, i)
         elements_[i].addTurbulence(eqn, fieldNames_[fieldI]);
 }
@@ -980,27 +979,22 @@ void Foam::fv::actuatorCableLineSource::addSup
     forAll(elements_, i)
     {
         elements_[i].addSup(rho, eqn, forceField_);
-        // After the cable-element fix, force() is the CFD feedback force
-        // (hydrodynamic drag only), not the full structural load.
         force_ += elements_[i].force();
     }
-    scalar sumCableForceMag = 0.0;
-    vector sumCableForce(vector::zero);
-    vector sumBuoyancyForce(vector::zero);
-    vector sumFeedbackForce(vector::zero);
-    forAll(elements_, i)
+    if (debug)
     {
-        sumCableForce += elements_[i].cableForce();
-        sumCableForceMag += mag(elements_[i].cableForce());
-        sumBuoyancyForce += elements_[i].buoyancyForce();
-        sumFeedbackForce += elements_[i].force();
+        vector sumDrag(vector::zero);
+        vector sumBuoyancy(vector::zero);
+        forAll(elements_, i)
+        {
+            sumDrag     += elements_[i].dragForce();
+            sumBuoyancy += elements_[i].buoyancyForce();
+        }
+        Info<< "Force on cable " << name_
+            << ": dragOnCable=" << sumDrag
+            << "  buoyancy(structureOnly)=" << sumBuoyancy
+            << "  feedbackToFluid=" << -sumDrag << endl;
     }
-    Info<< "Force on cable " << name_
-        << ": appliedFeedback=" << force_
-        << "  structuralInput(sum cableForce)=" << sumCableForce
-        << "  sumBuoyancyForce=" << sumBuoyancyForce
-        << "  sumFeedbackForce=" << sumFeedbackForce
-        << "  sum|cableForce|=" << sumCableForceMag << endl;
     if (forceField_.dimensions() != eqn.dimensions()/dimVolume)
         forceField_.dimensions().reset(eqn.dimensions()/dimVolume);
     eqn += forceField_;

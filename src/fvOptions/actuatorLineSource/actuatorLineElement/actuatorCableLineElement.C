@@ -565,9 +565,35 @@ void Foam::fv::actuatorCableLineElement::addSup
 {
     if (positionInMesh_)
     {
-        applyForceField(forceField);
+        // Use a local scratch field for this element's contribution so that
+        // multiplying by rho only affects this element's smeared force and
+        // does not corrupt the contributions of elements already accumulated
+        // in forceField.  This mirrors actuatorBernoulliLineElement::addSup.
+        volVectorField forceFieldI
+        (
+            IOobject
+            (
+                "force." + name_,
+                mesh_.time().timeName(),
+                mesh_
+            ),
+            mesh_,
+            dimensionedVector
+            (
+                "zero",
+                forceField.dimensions()/rho.dimensions(),
+                vector::zero
+            )
+        );
+
+        applyForceField(forceFieldI);
+
+        // Scale forceVector_ by local density for force() bookkeeping
         multiplyForceRho(rho);
-        forceField *= rho;
+
+        // Multiply this element's field by density then accumulate
+        forceFieldI *= rho;
+        forceField  += forceFieldI;
     }
 }
 
