@@ -22,7 +22,7 @@ inlet
 
     nPaddle         1;
 
-    waveHeight      0.0;
+    waveHeight      0.1;
 	
     waveAngle       0.0;
 
