@@ -115,6 +115,9 @@ const Foam::vector& Foam::fv::actuatorCableLineElement::deformation() const
 const Foam::vector& Foam::fv::actuatorCableLineElement::cableForce() const
 { return cableForce_; }
 
+const Foam::vector& Foam::fv::actuatorCableLineElement::dragForce() const
+{ return dragForce_; }
+
 Foam::scalar Foam::fv::actuatorCableLineElement::tension() const
 { return tension_; }
 
@@ -364,14 +367,14 @@ void Foam::fv::actuatorCableLineElement::calculateForce
     }
 
     // Drag: only non-zero when there is a meaningful relative velocity.
-    vector dragForce = vector::zero;
+    dragForce_ = vector::zero;
     if (magRelNormal > VSMALL)
     {
         scalar drag = 0.5 * rhoFluid * cableDragCoeff_
                     * projectedArea * magSqr(relNormal);
-        dragForce = drag * (relNormal / magRelNormal);
+        dragForce_ = drag * (relNormal / magRelNormal);
     }
-
+	forceVector_=dragForce_;
     // ------------------------------------------------------------------
     // 3. Net buoyancy (buoyancy - self-weight)
     //    F_net = -(rho_f - rho_c) * g * V
@@ -393,8 +396,7 @@ void Foam::fv::actuatorCableLineElement::calculateForce
 
 	// Feed back ONLY the hydrodynamic drag to the flow field; keep the full
 	// external load (drag + buoyancy) for the structural solve.
-	forceVector_ = dragForce;
-	cableForce_  = dragForce + buoyancyForce_;
+	cableForce_  = dragForce_ + buoyancyForce_;
 	
 	
 	Info<< "time = " << mesh_.time().value() << nl
@@ -419,7 +421,7 @@ void Foam::fv::actuatorCableLineElement::calculateForce
             << "  rhoFluid        : " << rhoFluid << nl
             << "  diameter        : " << diameter << nl
             << "  spanLen         : " << spanLen << nl
-            << "  drag force      : " << dragForce << nl
+            << "  drag force      : " << dragForce_ << nl
             << "  buoyancy force  : " << buoyancyForce_ << nl
             << "  total cableForce: " << cableForce_ << nl
             << "  tension         : " << tension_ << endl;
@@ -489,7 +491,7 @@ scalar Foam::fv::actuatorCableLineElement::calcProjectionEpsilon()
             << abort(FatalError);
     }
 
-    if (debug)
+    if (true)
     {
         reduce(epsilonMesh, minOp<scalar>());
         word epsilonMethod;
@@ -509,6 +511,7 @@ scalar Foam::fv::actuatorCableLineElement::calcProjectionEpsilon()
     }
 
     return epsilon;
+    
 }
 
 
@@ -532,11 +535,11 @@ void Foam::fv::actuatorCableLineElement::applyForceField
                           / (Foam::pow(epsilon, 3)
                           * Foam::pow(Foam::constant::mathematical::pi, 1.5));
             // forceField is opposite forceVector
-            forceField[cellI] += -forceVector_*factor;
+            forceField[cellI] += -dragForce_*factor;
         }
     }
 
-    if (debug)
+    if (true)
     {
         Info<< "    sphereRadius: " << sphereRadius << endl;
     }

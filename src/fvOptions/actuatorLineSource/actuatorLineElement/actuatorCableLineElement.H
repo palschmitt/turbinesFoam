@@ -239,8 +239,13 @@ public:
             //- Return accumulated deformation
             const vector& deformation() const;
 
-            //- Return the structural (drag) force vector
+            //- Return the structural force vector
             const vector& cableForce() const;
+            
+            //- Return the fluid force vector
+            const vector& dragForce() const;
+            
+            vector dragForce_;
 
             //- Return element tension from last CableAnalysis solve
             scalar tension() const;

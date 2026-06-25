@@ -1041,11 +1041,19 @@ void Foam::fv::actuatorCableLineSource::writeVTK()
         vtkFilePtr_() << v[0] << " " << v[1] << " " << v[2] << nl;
     }
     vtkFilePtr_() << endl;
-    // Hydrodynamic force
-    vtkFilePtr_() << "VECTORS Force double" << nl;
+        // Hydrodynamic force
+    vtkFilePtr_() << "VECTORS DragForce double" << nl;
     forAll(elements_, i)
     {
-        vector f = elements_[i].force();
+        vector f = elements_[i].dragForce();
+        vtkFilePtr_() << f[0] << " " << f[1] << " " << f[2] << nl;
+    }
+    vtkFilePtr_() << endl;
+    // Hydrodynamic force
+    vtkFilePtr_() << "VECTORS CableForce double" << nl;
+    forAll(elements_, i)
+    {
+        vector f = elements_[i].cableForce();
         vtkFilePtr_() << f[0] << " " << f[1] << " " << f[2] << nl;
     }
     vtkFilePtr_() << endl;
