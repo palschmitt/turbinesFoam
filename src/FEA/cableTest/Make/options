@@ -1,0 +1,8 @@
+EXE_INC = \
+    -I../lnInclude \
+    -I..
+
+EXE_LIBS = \
+    -L$(FOAM_USER_LIBBIN) \
+    -lALFEA
+
