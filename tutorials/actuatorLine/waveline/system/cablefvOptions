@@ -58,33 +58,14 @@ buoyantCable
         cellSet         cableRegion;    // create with topoSet if needed;
                                         // or use "all" for a simple domain
 
-        nElements       2;
+        nElements       4;
 
-        // ------------------------------------------------------------------
-        // elementGeometry
-        //   One row per geometry point (2 points = 1 segment for a straight
-        //   cable).  The 20 elements are distributed uniformly between them.
-        //
-        //   Column layout:
-        //     [0]  (x y z)            -- point position
-        //     [1]  (sx sy sz)         -- span direction at this point
-        //     [2]  (chord)            -- effective diameter used by base class
-        //     [3]  (crx cry crz)      -- chord reference direction (unused for
-        //                                cables; set to span direction)
-        //     [4]  (chordMount)       -- unused for cables; set to 0.5
-        //     [5]  (pitch)            -- unused for cables; set to 0
-        //     [6]  (EA  T0)           -- axial stiffness [N], pretension [N]
-        //     [7]  (Cd  d  rho_c  rho_f) -- drag coeff, diameter [m],
-        //                                   cable density [kg/m3],
-        //                                   fluid density [kg/m3]
-        //     [8]  (r1 r2 r3)         -- restraints (1=fixed, 0=free) per DOF
-        // ------------------------------------------------------------------
 
         elementGeometry
         (
             //  [0] position       [1] spanDir      [2] chord  [3] chordRef    [4]   [5]  [6] EA    T0    [7] Cd    d      rhoC   rhoF    [8] restraints
-            (   (0.6  0.2   0.0)    (0  0  -1)    (0.03)  (0  0  -1)    (0.5) (0)  (5e4  0)  (1.0  0.03  300  1000)  (1 1 1)  )   // bottom anchor -- fully fixed
-            (   (0.6  0.2   0.4)    (0  0  -1)    (0.03)  (0  0  -1)    (0.5) (0)  (5e4  0)  (1.0  0.03  300  1000)  (0 0 0)  )   // top end
+            (   (0.6  0.2   0.2)    (0  0  -1)    (0.03)  (0  1  0)    (0.5) (0)  (5e2  0.1)  (1.0  0.03  300  1000)  (1 1 1)  )   // bottom anchor -- fully fixed
+            (   (0.6  0.2   0.8)    (0  0  -1)    (0.03)  (0  1  0)    (0.5) (0)  (5e2  0.1)  (1.0  0.03  300  1000)  (0 0 0)  )   // top end
         );
 
         elementProfiles
@@ -99,8 +80,8 @@ buoyantCable
                 data
                 (
                 //  alpha    Cl      Cd
-                    (-180    0.0     0.0)
-                    ( 180    0.0     0.0)
+                    (-180    0.0     1.0)
+                    ( 180    0.0     1.0)
                 );
             }
         }

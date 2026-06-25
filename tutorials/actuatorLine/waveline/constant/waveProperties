@@ -22,11 +22,11 @@ inlet
 
     nPaddle         1;
 
-    waveHeight      0.1;
-
+    waveHeight      0.0;
+	
     waveAngle       0.0;
 
-    rampTime        3.017;
+    rampTime        0.5;
 
     activeAbsorption yes;
 

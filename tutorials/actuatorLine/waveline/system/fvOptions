@@ -58,7 +58,7 @@ buoyantCable
         cellSet         cableRegion;    // create with topoSet if needed;
                                         // or use "all" for a simple domain
 
-        nElements       2;
+        nElements       4;
 
 
         elementGeometry

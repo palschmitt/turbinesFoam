@@ -117,6 +117,10 @@ protected:
 
         //- Element tension recovered from CableAnalysis [N]
         scalar tension_;
+        
+        
+        //- Apply force field based on force vector
+        void applyForceField(volVectorField& forceField);
 
         // --- CableAnalysis structural parameters ---
 
@@ -323,7 +327,7 @@ public:
                 scalar radians
             );
 
-
+            scalar calcProjectionEpsilon();
         // Evaluation
 
             //- Read element data from dictionary
@@ -352,6 +356,10 @@ public:
                 fvMatrix<vector>& eqn,
                 volVectorField& forceField
             );
+            
+            
+
+            
 };
 
 

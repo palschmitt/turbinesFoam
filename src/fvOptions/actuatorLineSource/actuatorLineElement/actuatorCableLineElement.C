@@ -436,6 +436,112 @@ void Foam::fv::actuatorCableLineElement::calculateForce
 // already set correctly by the preceding calculateForce() call, so we
 // simply gate on it.
 
+
+scalar Foam::fv::actuatorCableLineElement::calcProjectionEpsilon()
+{
+    // Lookup Gaussian coeffs from profileData dict if present
+    dictionary GaussianCoeffs = profileData_.dict().subOrEmptyDict
+    (
+        "GaussianCoeffs"
+    );
+    scalar chordFactor = GaussianCoeffs.lookupOrDefault("chordFactor", 0.25);
+    scalar dragFactor = GaussianCoeffs.lookupOrDefault("dragFactor", 1.0);
+    scalar meshFactor = GaussianCoeffs.lookupOrDefault("meshFactor", 2.0);
+
+    // Provide ideal epsilon target for lift based on chord length
+    scalar epsilonLift = chordFactor*cableDiameter_;
+
+    // Epsilon based on drag/momentum thickness
+    scalar epsilonDrag = dragFactor*dragCoefficient_*cableDiameter_/2.0;
+
+    // Threshold is based on lift or drag, whichever is larger
+    scalar epsilonThreshold = Foam::max(epsilonLift, epsilonDrag);
+
+    scalar epsilon = VGREAT;
+    scalar epsilonMesh = VGREAT;
+    const scalarField& V = mesh_.V();
+    label posCellI = findCell(position_);
+    if (posCellI >= 0)
+    {
+        // Projection width based on local cell size (from Troldborg (2008))
+        epsilonMesh = 2.0*Foam::cbrt(V[posCellI]);
+        epsilonMesh *= meshFactor; // Cell could have non-unity aspect ratio
+
+        if (epsilonMesh > epsilonThreshold)
+        {
+            epsilon = epsilonMesh;
+        }
+        else
+        {
+            epsilon = epsilonThreshold;
+        }
+    }
+
+    // Reduce epsilon over all processors
+    reduce(epsilon, minOp<scalar>());
+
+    // If epsilon is not reduced, position is not in the mesh
+    if (not (epsilon < VGREAT))
+    {
+        // Raise fatal error since mesh size cannot be detected
+        FatalErrorIn("void actuatorBernoulliLineElement::applyForceField()")
+            << "Position "<< position_<<" of " << name_  << " not found in mesh"
+            << abort(FatalError);
+    }
+
+    if (debug)
+    {
+        reduce(epsilonMesh, minOp<scalar>());
+        word epsilonMethod;
+        if (epsilon == epsilonLift)
+        {
+            epsilonMethod = "lift-based";
+        }
+        else if (epsilon == epsilonDrag)
+        {
+            epsilonMethod = "drag-based";
+        }
+        else if (epsilon == epsilonMesh)
+        {
+            epsilonMethod = "mesh-based";
+        }
+        Info<< "    epsilon (" << epsilonMethod << "): " << epsilon << endl;
+    }
+
+    return epsilon;
+}
+
+
+void Foam::fv::actuatorCableLineElement::applyForceField
+(
+    volVectorField& forceField
+)
+{
+    // Calculate projection width
+    scalar epsilon = calcProjectionEpsilon();
+    scalar projectionRadius = (epsilon*Foam::sqrt(Foam::log(1.0/0.001)));
+
+    // Apply force to the cells within the element's sphere of influence
+    scalar sphereRadius = cableDiameter_ + projectionRadius;
+    forAll(mesh_.cells(), cellI)
+    {
+        scalar dis = mag(mesh_.C()[cellI] - position_);
+        if (dis <= sphereRadius)
+        {
+            scalar factor = Foam::exp(-Foam::sqr(dis/epsilon))
+                          / (Foam::pow(epsilon, 3)
+                          * Foam::pow(Foam::constant::mathematical::pi, 1.5));
+            // forceField is opposite forceVector
+            forceField[cellI] += -forceVector_*factor;
+        }
+    }
+
+    if (debug)
+    {
+        Info<< "    sphereRadius: " << sphereRadius << endl;
+    }
+}
+
 void Foam::fv::actuatorCableLineElement::addSup
 (
     fvMatrix<vector>& eqn,
