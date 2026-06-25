@@ -464,17 +464,30 @@ for (label k = 0; k < nNodes; ++k)
         // elements from being driven to large displacements).  The original
         // cableForce() is preserved for the CFD body force application.
         vector F = cappedForce[i];
-        sv[0] = 0.5*F.x(); sv[1] = 0.5*F.y(); sv[2] = 0.5*F.z();
-        CALoads[2*i + 1] = sv;
-        // End-node accumulates contributions from adjacent elements; add here
-        // (it was initialised to zero above; the next element's loop will also
-        // add its 0.5*F contribution to node 2*i+2 as its own mid-node entry,
-        // so no double-counting occurs for interior nodes).
-        sv[0] = 0.5*F.x(); sv[1] = 0.5*F.y(); sv[2] = 0.5*F.z();
-        List<scalar>& endLoad = CALoads[2*i + 2];
-        endLoad[0] += sv[0];
-        endLoad[1] += sv[1];
-        endLoad[2] += sv[2];
+
+        // Each actuator element maps onto TWO FEA sub-elements:
+        //   sub-element A : node 2*i     -> node 2*i+1   (start  -> mid)
+        //   sub-element B : node 2*i+1   -> node 2*i+2   (mid    -> end)
+        //
+        // Treating F as uniformly distributed over the full actuator element,
+        // the consistent nodal load split is:
+        //   node 2*i   (start) : 0.25 * F   (half of sub-element A)
+        //   node 2*i+1 (mid)   : 0.50 * F   (half of A + half of B)
+        //   node 2*i+2 (end)   : 0.25 * F   (half of sub-element B)
+        //
+        // Adjacent actuator elements share end-nodes, so += accumulates
+        // contributions correctly from both sides of each shared node.
+        CALoads[2*i][0]     += 0.25*F.x();
+        CALoads[2*i][1]     += 0.25*F.y();
+        CALoads[2*i][2]     += 0.25*F.z();
+
+        CALoads[2*i+1][0]   += 0.5*F.x();
+        CALoads[2*i+1][1]   += 0.5*F.y();
+        CALoads[2*i+1][2]   += 0.5*F.z();
+
+        CALoads[2*i+2][0]   += 0.25*F.x();
+        CALoads[2*i+2][1]   += 0.25*F.y();
+        CALoads[2*i+2][2]   += 0.25*F.z();
         // --- Element connectivity ---
         List<int> con(2);
         con[0] = 2*i;     con[1] = 2*i + 1;
@@ -816,16 +829,19 @@ for (label k = 0; k < nNodes; ++k)
         elements_[i].setP1      (newNodePos[2*i]);
         elements_[i].setPosition(newNodePos[2*i + 1]);
         elements_[i].setP2      (newNodePos[2*i + 2]);
-        // Store the total displacement of this element's mid-node.
-        elements_[i].setDeformation
+
+        // VTK deformation output: store the TOTAL displacement that
+        // CableAnalysis converged to (dTotal), not the possibly-clamped
+        // position applied this step (dNew).  The clamping is a numerical
+        // stabiliser for the node positions; the output field should show
+        // what the structural model says the answer is.
+        vector dTotalMid
         (
-            vector
-            (
-                newNodePos[2*i + 1].x() - refNodePos_[2*i + 1].x(),
-                newNodePos[2*i + 1].y() - refNodePos_[2*i + 1].y(),
-                newNodePos[2*i + 1].z() - refNodePos_[2*i + 1].z()
-            )
+            deformations[2*i + 1][0],
+            deformations[2*i + 1][1],
+            deformations[2*i + 1][2]
         );
+        elements_[i].setDeformation(dTotalMid);
         // Update span geometry from deformed P1 -> P2
         vector span = elements_[i].P2() - elements_[i].P1();
         scalar len  = mag(span);
@@ -952,11 +968,12 @@ void Foam::fv::actuatorCableLineSource::addSup
     const label fieldI
 )
 {
-    // The structural solve and force calculation are driven by the momentum
-    // addSup (vector overload), which OpenFOAM calls before this scalar one.
-    // Do NOT reset lastMotionTime_ here or re-run evaluateDeformation():
-    // that would repeat the FEA solve with identical loads, wasting cost and
-    // corrupting the warm-start displacement for the next time step.
+    // Forces must be current before the structural solve.
+    lastMotionTime_ = -GREAT;
+    const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
+    forAll(elements_, i)
+        elements_[i].calculateForce(U);
+    evaluateDeformation();
     forAll(elements_, i)
         elements_[i].addTurbulence(eqn, fieldNames_[fieldI]);
 }
@@ -979,22 +996,27 @@ void Foam::fv::actuatorCableLineSource::addSup
     forAll(elements_, i)
     {
         elements_[i].addSup(rho, eqn, forceField_);
+        // After the cable-element fix, force() is the CFD feedback force
+        // (hydrodynamic drag only), not the full structural load.
         force_ += elements_[i].force();
     }
-    if (debug)
+    scalar sumCableForceMag = 0.0;
+    vector sumCableForce(vector::zero);
+    vector sumBuoyancyForce(vector::zero);
+    vector sumFeedbackForce(vector::zero);
+    forAll(elements_, i)
     {
-        vector sumDrag(vector::zero);
-        vector sumBuoyancy(vector::zero);
-        forAll(elements_, i)
-        {
-            sumDrag     += elements_[i].dragForce();
-            sumBuoyancy += elements_[i].buoyancyForce();
-        }
-        Info<< "Force on cable " << name_
-            << ": dragOnCable=" << sumDrag
-            << "  buoyancy(structureOnly)=" << sumBuoyancy
-            << "  feedbackToFluid=" << -sumDrag << endl;
+        sumCableForce += elements_[i].cableForce();
+        sumCableForceMag += mag(elements_[i].cableForce());
+        sumBuoyancyForce += elements_[i].buoyancyForce();
+        sumFeedbackForce += elements_[i].force();
     }
+    Info<< "Force on cable " << name_
+        << ": appliedFeedback=" << force_
+        << "  structuralInput(sum cableForce)=" << sumCableForce
+        << "  sumBuoyancyForce=" << sumBuoyancyForce
+        << "  sumFeedbackForce=" << sumFeedbackForce
+        << "  sum|cableForce|=" << sumCableForceMag << endl;
     if (forceField_.dimensions() != eqn.dimensions()/dimVolume)
         forceField_.dimensions().reset(eqn.dimensions()/dimVolume);
     eqn += forceField_;
