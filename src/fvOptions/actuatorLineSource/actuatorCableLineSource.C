@@ -190,9 +190,11 @@ void Foam::fv::actuatorCableLineSource::createInitialElements()
                              / nElementsPerSegment / 2.0)
                         : chordLength;
         // cableSects[seg][2] = cable material density [kg/m3]
-        scalar elemRhoC = cableSects[seg][2];
+        scalar elemRhoC = (cableSects[seg].size() > 2)
+                        ? cableSects[seg][2] : 7850.0;
         // cableSects[seg][3] = reference fluid density [kg/m3]
-        scalar elemRhoF = cableSects[seg][3];
+        scalar elemRhoF = (cableSects[seg].size() > 3)
+                        ? cableSects[seg][3] : 1025.0;
         dict.add("CableDiameter",    elemDiam);
         dict.add("CableDensity",     elemRhoC);
         dict.add("CableFluidDensity", elemRhoF);
@@ -913,12 +915,15 @@ void Foam::fv::actuatorCableLineSource::addSup
     lastMotionTime_ = -GREAT;
     // Step 1: compute hydrodynamic forces from current velocity field.
     const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
+
+    forceField_ *= dimensionedScalar("zero", forceField_.dimensions(), 0.0);
+    force_ = vector::zero;
+
     forAll(elements_, i)
         elements_[i].calculateForce(U);
     // Step 2: structural solve with current forces.
     evaluateDeformation();
-    forceField_ *= dimensionedScalar("zero", forceField_.dimensions(), 0.0);
-    force_ = vector::zero;
+
     forAll(elements_, i)
     {
         elements_[i].addSup(eqn, forceField_);
@@ -927,6 +932,8 @@ void Foam::fv::actuatorCableLineSource::addSup
     if (forceField_.dimensions() != eqn.dimensions()/dimVolume)
         forceField_.dimensions().reset(eqn.dimensions()/dimVolume);
     eqn += forceField_;
+    if (mesh_.time().outputTime())
+        forceField_.write();
     if (writePerf_ && Pstream::master())  writePerf();
     if (writeVTK_ && mesh_.time().outputTime() && Pstream::master()) writeVTK();
 }
@@ -955,12 +962,17 @@ void Foam::fv::actuatorCableLineSource::addSup
     lastMotionTime_ = -GREAT;
     // Step 1: compute hydrodynamic forces from current velocity field.
     const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
-    forAll(elements_, i)
-        elements_[i].calculateForce(U);
+
     // Step 2: structural solve with current forces.
-    evaluateDeformation();
     forceField_ *= dimensionedScalar("zero", forceField_.dimensions(), 0.0);
     force_ = vector::zero;
+
+    forAll(elements_, i)
+        elements_[i].calculateForce(U);
+
+
+    evaluateDeformation();
+
     forAll(elements_, i)
     {
         elements_[i].addSup(rho, eqn, forceField_);
@@ -988,6 +1000,8 @@ void Foam::fv::actuatorCableLineSource::addSup
     if (forceField_.dimensions() != eqn.dimensions()/dimVolume)
         forceField_.dimensions().reset(eqn.dimensions()/dimVolume);
     eqn += forceField_;
+    if (mesh_.time().outputTime())
+        forceField_.write();
     if (writePerf_ && Pstream::master())  writePerf();
     if (writeVTK_ && mesh_.time().outputTime() && Pstream::master()) writeVTK();
 }
