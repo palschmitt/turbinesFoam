@@ -737,11 +737,15 @@ for (label k = 0; k < nNodes; ++k)
 // ------------------------------------------------------------------
 // deformations[] from CableAnalysis is the TOTAL displacement from the
 // undeformed reference geometry (because CANodes = refNodePos_).
-//
-// Use the SAME previous nodal displacement field that was used to build
-// CAu0, so timestep handoff is consistent.
-scalar maxDispFraction =
-    coeffs_.lookupOrDefault<scalar>("maxDispFraction", 0.5);
+// Apply it directly — no per-step limiter.  The warm-start (CAu0) already
+// initialises Newton-Raphson near the previous solution, so the solver
+// converges to the correct equilibrium in one or a few iterations without
+// needing an external clamp.  A per-step limiter is counterproductive here
+// because it permanently throttles the position toward the converged answer
+// (each step is capped, the capped value becomes the next warm-start, the
+// next step is capped again, and the cable never reaches equilibrium).
+// CableAnalysis has its own internal Newton step-limiter (0.5*minL0_ per
+// iteration) which is the correct place to handle transient overshoots.
 
 List<vector> newNodePos(nNodes);
 
@@ -761,38 +765,10 @@ for (label k = 0; k < nNodes; ++k)
             << abort(FatalError);
     }
 
-    vector dPrev = prevNodePos[k] - refNodePos_[k];
-    vector dStep = dTotal - dPrev;
-
-    label ownerElem = (k == 0 ? 0 : (k - 1)/2);
-    if (ownerElem > nElements_ - 1)
-    {
-        ownerElem = nElements_ - 1;
-    }
-
-    scalar maxStep = maxDispFraction*elements_[ownerElem].spanLength();
-    scalar stepMag = mag(dStep);
-
-    if (!finiteScalar(maxStep) || !finiteScalar(stepMag) || !finiteVector(dPrev) || !finiteVector(dStep))
-    {
-        FatalErrorIn("actuatorCableLineSource::evaluateDeformation()")
-            << "Non-finite nodal update state at node " << k << nl
-            << "  dPrev   = " << dPrev << nl
-            << "  dTotal  = " << dTotal << nl
-            << "  dStep   = " << dStep << nl
-            << "  maxStep = " << maxStep << nl
-            << "  stepMag = " << stepMag << nl
-            << "  ownerElem=" << ownerElem
-            << abort(FatalError);
-    }
-
-    if (stepMag > maxStep && stepMag > VSMALL)
-    {
-        dStep *= maxStep/stepMag;
-    }
-
-    vector dNew = dPrev + dStep;
-
+    // Apply the converged total displacement directly.
+    // Override restrained DOFs with the prescribed value (should already
+    // be zero for fixed anchors, but enforced here for safety).
+    vector dNew = dTotal;
     for (label d = 0; d < 3; ++d)
     {
         if (CARestraints[k][d])
@@ -808,8 +784,7 @@ for (label k = 0; k < nNodes; ++k)
         FatalErrorIn("actuatorCableLineSource::evaluateDeformation()")
             << "Non-finite newNodePos[" << k << "] = " << newNodePos[k] << nl
             << "  refNodePos = " << refNodePos_[k] << nl
-            << "  dPrev      = " << dPrev << nl
-            << "  dStep      = " << dStep << nl
+            << "  dTotal     = " << dTotal << nl
             << "  dNew       = " << dNew
             << abort(FatalError);
     }
@@ -817,9 +792,7 @@ for (label k = 0; k < nNodes; ++k)
     if (debugCableState)
     {
         Info<< "  node " << k
-            << " dPrev=" << dPrev
             << " dTotal=" << dTotal
-            << " dStep=" << dStep
             << " newNodePos=" << newNodePos[k] << endl;
     }
 }
@@ -830,11 +803,8 @@ for (label k = 0; k < nNodes; ++k)
         elements_[i].setPosition(newNodePos[2*i + 1]);
         elements_[i].setP2      (newNodePos[2*i + 2]);
 
-        // VTK deformation output: store the TOTAL displacement that
-        // CableAnalysis converged to (dTotal), not the possibly-clamped
-        // position applied this step (dNew).  The clamping is a numerical
-        // stabiliser for the node positions; the output field should show
-        // what the structural model says the answer is.
+        // VTK deformation output: total displacement that CableAnalysis
+        // converged to, consistent with the node positions applied above.
         vector dTotalMid
         (
             deformations[2*i + 1][0],
