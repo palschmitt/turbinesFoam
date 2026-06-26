@@ -107,12 +107,6 @@ protected:
         
         List<vector> prevCableForce_;
 
-        //- Total resultant hydrodynamic force on the cable
-        vector force_;
-
-        //- Volumetric force field contributed to the CFD momentum equation
-        volVectorField forceField_;
-
         //- List of cable actuator elements
         PtrList<actuatorCableLineElement> elements_;
 

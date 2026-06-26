@@ -861,34 +861,13 @@ Foam::fv::actuatorCableLineSource::actuatorCableLineSource
 )
 :
     cellSetOption(name, modelType, dict, mesh),
-    actuatorLineSource(name, modelType, dict, mesh),
-    force_(vector::zero),
-    forceField_
-    (
-        IOobject
-        (
-            "force." + name_,
-            mesh_.time().timeName(),
-            mesh_,
-            IOobject::NO_READ,
-            IOobject::AUTO_WRITE
-        ),
-        mesh_,
-        dimensionedVector
-        (
-            "force",
-            dimForce/dimVolume,
-            vector::zero
-        )
-    )
+    actuatorLineSource(name, modelType, dict, mesh)
 {
     read(dict_);
     createInitialElements();
     evaluateDeformation();
     if (writePerf_)   createOutputFile();
     if (writeVTK_)    createOutputDir();
-    if (forceField_.writeOpt() == IOobject::AUTO_WRITE)
-        forceField_.write();
     if (endEffectsActive_)
         calcEndEffects();
 }
@@ -907,33 +886,32 @@ void Foam::fv::actuatorCableLineSource::addSup
     const label fieldI
 )
 {
-    // Reset the motion-time guard so evaluateDeformation() always runs.
-    // The guard exists to prevent duplicate solves when addSup is called
-    // multiple times within the same time step (e.g. PIMPLE outer loops).
-    // We control the call order here, so we reset it to -GREAT to guarantee
-    // the structural solve runs with the freshly computed forces.
     lastMotionTime_ = -GREAT;
-    // Step 1: compute hydrodynamic forces from current velocity field.
+
     const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
 
-    forceField_ *= dimensionedScalar("zero", forceField_.dimensions(), 0.0);
-    force_ = vector::zero;
-
+    // Step 1: compute hydrodynamic forces from current velocity field.
     forAll(elements_, i)
         elements_[i].calculateForce(U);
+
     // Step 2: structural solve with current forces.
     evaluateDeformation();
 
+    // Step 3: zero and repopulate the inherited forceField_ so that
+    // AUTO_WRITE writes the correct non-zero values at output times.
+    forceField_ *= dimensionedScalar("zero", forceField_.dimensions(), 0.0);
+    force_ = vector::zero;
     forAll(elements_, i)
     {
         elements_[i].addSup(eqn, forceField_);
         force_ += elements_[i].force();
     }
+
     if (forceField_.dimensions() != eqn.dimensions()/dimVolume)
         forceField_.dimensions().reset(eqn.dimensions()/dimVolume);
+
     eqn += forceField_;
-    if (mesh_.time().outputTime())
-        forceField_.write();
+
     if (writePerf_ && Pstream::master())  writePerf();
     if (writeVTK_ && mesh_.time().outputTime() && Pstream::master()) writeVTK();
 }
@@ -960,55 +938,31 @@ void Foam::fv::actuatorCableLineSource::addSup
 )
 {
     lastMotionTime_ = -GREAT;
-    // Step 1: compute hydrodynamic forces from current velocity field.
+
     const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
 
+    // Step 1: compute hydrodynamic forces from current velocity field.
+    forAll(elements_, i)
+        elements_[i].calculateForce(U);
 
-// Step 1: compute forces
-forAll(elements_, i)
-    elements_[i].calculateForce(U);
+    // Step 2: structural solve with current forces.
+    evaluateDeformation();
 
-// Step 2: deform structure
-evaluateDeformation();
-
-// Step 2: structural solve with current forces.
-forceField_ *= dimensionedScalar("zero", forceField_.dimensions(), 0.0);
-force_ = vector::zero;
-
-
-// NEW: recompute forces at updated positions
-forAll(elements_, i)
-    elements_[i].calculateForce(U);
-
-// Step 3: apply to field
-forAll(elements_, i)
-{
-    elements_[i].addSup(eqn, forceField_);
-}
-    
-    
-    scalar sumCableForceMag = 0.0;
-    vector sumCableForce(vector::zero);
-    vector sumBuoyancyForce(vector::zero);
-    vector sumFeedbackForce(vector::zero);
+    // Step 3: zero and repopulate the inherited forceField_ so that
+    // AUTO_WRITE writes the correct non-zero values at output times.
+    forceField_ *= dimensionedScalar("zero", forceField_.dimensions(), 0.0);
+    force_ = vector::zero;
     forAll(elements_, i)
     {
-        sumCableForce += elements_[i].cableForce();
-        sumCableForceMag += mag(elements_[i].cableForce());
-        sumBuoyancyForce += elements_[i].buoyancyForce();
-        sumFeedbackForce += elements_[i].force();
+        elements_[i].addSup(rho, eqn, forceField_);
+        force_ += elements_[i].force();
     }
-    Info<< "Force on cable " << name_
-        << ": appliedFeedback=" << force_
-        << "  structuralInput(sum cableForce)=" << sumCableForce
-        << "  sumBuoyancyForce=" << sumBuoyancyForce
-        << "  sumFeedbackForce=" << sumFeedbackForce
-        << "  sum|cableForce|=" << sumCableForceMag << endl;
+
     if (forceField_.dimensions() != eqn.dimensions()/dimVolume)
         forceField_.dimensions().reset(eqn.dimensions()/dimVolume);
+
     eqn += forceField_;
-    if (mesh_.time().outputTime())
-        forceField_.write();
+
     if (writePerf_ && Pstream::master())  writePerf();
     if (writeVTK_ && mesh_.time().outputTime() && Pstream::master()) writeVTK();
 }
