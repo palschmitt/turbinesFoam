@@ -190,11 +190,9 @@ void Foam::fv::actuatorCableLineSource::createInitialElements()
                              / nElementsPerSegment / 2.0)
                         : chordLength;
         // cableSects[seg][2] = cable material density [kg/m3]
-        scalar elemRhoC = (cableSects[seg].size() > 2)
-                        ? cableSects[seg][2] : 7850.0;
+        scalar elemRhoC = cableSects[seg][2];
         // cableSects[seg][3] = reference fluid density [kg/m3]
-        scalar elemRhoF = (cableSects[seg].size() > 3)
-                        ? cableSects[seg][3] : 1025.0;
+        scalar elemRhoF = cableSects[seg][3];
         dict.add("CableDiameter",    elemDiam);
         dict.add("CableDensity",     elemRhoC);
         dict.add("CableFluidDensity", elemRhoF);
