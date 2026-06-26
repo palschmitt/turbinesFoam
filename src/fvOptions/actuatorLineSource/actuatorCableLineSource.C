@@ -963,23 +963,30 @@ void Foam::fv::actuatorCableLineSource::addSup
     // Step 1: compute hydrodynamic forces from current velocity field.
     const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
 
-    // Step 2: structural solve with current forces.
-    forceField_ *= dimensionedScalar("zero", forceField_.dimensions(), 0.0);
-    force_ = vector::zero;
 
-    forAll(elements_, i)
-        elements_[i].calculateForce(U);
+// Step 1: compute forces
+forAll(elements_, i)
+    elements_[i].calculateForce(U);
+
+// Step 2: deform structure
+evaluateDeformation();
+
+// Step 2: structural solve with current forces.
+forceField_ *= dimensionedScalar("zero", forceField_.dimensions(), 0.0);
+force_ = vector::zero;
 
 
-    evaluateDeformation();
+// NEW: recompute forces at updated positions
+forAll(elements_, i)
+    elements_[i].calculateForce(U);
 
-    forAll(elements_, i)
-    {
-        elements_[i].addSup(rho, eqn, forceField_);
-        // After the cable-element fix, force() is the CFD feedback force
-        // (hydrodynamic drag only), not the full structural load.
-        force_ += elements_[i].force();
-    }
+// Step 3: apply to field
+forAll(elements_, i)
+{
+    elements_[i].addSup(eqn, forceField_);
+}
+    
+    
     scalar sumCableForceMag = 0.0;
     vector sumCableForce(vector::zero);
     vector sumBuoyancyForce(vector::zero);
