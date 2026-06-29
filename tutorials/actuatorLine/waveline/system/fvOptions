@@ -64,8 +64,8 @@ buoyantCable
         elementGeometry
         (
             //  [0] position       [1] spanDir      [2] chord  [3] chordRef    [4]   [5]  [6] EA    T0    [7] Cd    d      rhoC   rhoF    [8] restraints
-            (   (0.6  0.2   0.05)   (0  0  -1)    (0.03)  (0  1  0)    (0.5) (0)  (5e2  0.1)  (1.0  0.03  500  1000)  (1 1 1)  )   // bottom anchor -- fully fixed
-            (   (0.6  0.2   0.8)    (0  0  -1)    (0.03)  (0  1  0)    (0.5) (0)  (5e2  0.1)  (1.0  0.03  500  1000)  (0 0 0)  )   // top end
+            (   (0.6  0.2   0.05)   (0  0  1)    (0.03)  (0  1  0)    (0.5) (0)  (5e2  0.1)  (1.0  0.03  500  1000)  (1 1 1)  )   // bottom anchor -- fully fixed
+            (   (0.6  0.2   0.8)    (0  0  1)    (0.03)  (0  1  0)    (0.5) (0)  (5e2  0.1)  (1.0  0.03  500  1000)  (0 0 0)  )   // top end
         );
 
         elementProfiles
@@ -92,8 +92,8 @@ buoyantCable
         CableGravity        ( 0  0  -9.81 );
 
         // Velocity sampling
-        velocitySampleRadius    0.03;   // sample radius = 1 diameter
-        nVelocitySamples        10;
+	// velocitySampleRadius    0.1;   // sample radius = 1 diameter
+        //nVelocitySamples        10;
 
         // Output
         writePerf               true;

@@ -121,6 +121,9 @@ protected:
         
         //- Apply force field based on force vector
         void applyForceField(volVectorField& forceField);
+        
+        //- Get inflow velocity
+        void calculateInflowVelocity(const volVectorField& Uin);
 
         // --- CableAnalysis structural parameters ---
 

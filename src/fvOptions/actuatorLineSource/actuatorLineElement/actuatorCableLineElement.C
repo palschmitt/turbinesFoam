@@ -271,7 +271,73 @@ void Foam::fv::actuatorCableLineElement::rotate
 }
 
 
+
+
+
 // --- Evaluation ---
+
+void Foam::fv::actuatorCableLineElement::calculateInflowVelocity
+(
+    const volVectorField& Uin
+)
+{
+    // Find local flow velocity by interpolating to element location
+    inflowVelocity_ = vector(VGREAT, VGREAT, VGREAT);
+    vector inflowVelocityPoint = position_;
+    interpolationCellPoint<vector> UInterp(Uin);
+    
+    // Find indicative fflow velocity
+        label inflowCellI = findCell(inflowVelocityPoint);
+        if (inflowCellI >= 0)
+        {
+            inflowVelocity_ = UInterp.interpolate
+            (
+                inflowVelocityPoint,
+                inflowCellI
+            );
+        }
+
+        // Reduce inflow velocity over all processors
+        reduce(inflowVelocity_, minOp<vector>());
+        
+       //Update to upstream sampling position
+       Info<< "inflowVelocityPoint: "<< inflowVelocityPoint<< endl;
+       Info << "cableDiameter():  "<< cableDiameter()<<endl;
+       Info << "inflowVelocity_:  "<< inflowVelocity_<<endl;
+       //Don't bother if velocity is zero anyway?
+       if (mag(inflowVelocity_)>SMALL)
+       {
+        inflowVelocityPoint = position_-inflowVelocity_/mag(inflowVelocity_)*2*cableDiameter();
+       Info<< "inflowVelocityPoint: "<< inflowVelocityPoint<< endl;    
+    // Find final fflow velocity
+        inflowCellI = findCell(inflowVelocityPoint);
+
+        if (inflowCellI >= 0)
+        {
+            inflowVelocity_ = UInterp.interpolate
+            (
+                inflowVelocityPoint,
+                inflowCellI
+            );
+        }
+
+        // Reduce inflow velocity over all processors
+        reduce(inflowVelocity_, minOp<vector>());        
+	}
+        
+        
+
+    // If inflow velocity is not detected, position is not in the mesh
+    if (not (inflowVelocity_[0] < VGREAT))
+    {
+        // Raise fatal error since inflow velocity cannot be detected
+        FatalErrorIn("void actuatorLineElement::calculateForce()")
+            << "Inflow velocity point for " << name_
+            << " not found in mesh"
+            << abort(FatalError);
+    }
+}
+
 
 void Foam::fv::actuatorCableLineElement::calculateForce
 (
@@ -354,9 +420,12 @@ void Foam::fv::actuatorCableLineElement::calculateForce
     scalar spanLen = max(refSpanLength_, VSMALL);
     scalar projectedArea = diameter * spanLen;
 
+
+
     // Local fluid density: sample 'rho' field if present, else use
     // the user-supplied reference value
     scalar rhoFluid = max(cableFluidDensity_, VSMALL);
+    //Info <<"Rho for drag: "<<cableFluidDensity_<<endl;
     if (Uin.mesh().foundObject<volScalarField>("rho"))
     {
         const volScalarField& rhoField =
@@ -374,6 +443,12 @@ void Foam::fv::actuatorCableLineElement::calculateForce
                     * projectedArea * magSqr(relNormal);
         dragForce_ = drag * (relNormal / magRelNormal);
     }
+  
+    	
+    
+    
+    
+    
 	forceVector_=dragForce_;
     // ------------------------------------------------------------------
     // 3. Net buoyancy (buoyancy - self-weight)
@@ -399,13 +474,18 @@ void Foam::fv::actuatorCableLineElement::calculateForce
 	cableForce_  = dragForce_ + buoyancyForce_;
 
     
-    if (debug)
+    if (true)
     {
         Info<< "actuatorCableLineElement " << name_ << ":" << nl
             << "  position        : " << position_ << nl
             << "  spanUnit        : " << spanUnit << nl
             << "  inflowVelocity  : " << inflowVelocity_ << nl
             << "  relNormal       : " << relNormal << nl
+              	 <<"projectedArea: " <<projectedArea <<nl
+		<< "cableDragCoeff_: "<< cableDragCoeff_<< nl
+    	<<  "magSqr(relNormal): "<< magSqr(relNormal)<<nl
+    	<< "relNormal: "<< relNormal<<nl
+    	<< "dragForce_: "<< dragForce_ <<nl
             << "  rhoFluid        : " << rhoFluid << nl
             << "  diameter        : " << diameter << nl
             << "  spanLen         : " << spanLen << nl
