@@ -301,14 +301,15 @@ void Foam::fv::actuatorCableLineElement::calculateInflowVelocity
         reduce(inflowVelocity_, minOp<vector>());
         
        //Update to upstream sampling position
-       Info<< "inflowVelocityPoint: "<< inflowVelocityPoint<< endl;
+      /* Info<< "inflowVelocityPoint: "<< inflowVelocityPoint<< endl;
        Info << "cableDiameter():  "<< cableDiameter()<<endl;
        Info << "inflowVelocity_:  "<< inflowVelocity_<<endl;
+       */
        //Don't bother if velocity is zero anyway?
        if (mag(inflowVelocity_)>SMALL)
        {
         inflowVelocityPoint = position_-inflowVelocity_/mag(inflowVelocity_)*2*cableDiameter();
-       Info<< "inflowVelocityPoint: "<< inflowVelocityPoint<< endl;    
+       //Info<< "inflowVelocityPoint: "<< inflowVelocityPoint<< endl;    
     // Find final fflow velocity
         inflowCellI = findCell(inflowVelocityPoint);
 
