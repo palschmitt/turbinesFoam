@@ -966,6 +966,7 @@ void Foam::fv::actuatorCableLineSource::addSup
     if (writePerf_ && Pstream::master())  writePerf();
     if (writeVTK_ && mesh_.time().outputTime() && Pstream::master()) writeVTK();
 }
+
 void Foam::fv::actuatorCableLineSource::writeVTK()
 {
     fileName vtkFileName;
@@ -973,25 +974,44 @@ void Foam::fv::actuatorCableLineSource::writeVTK()
     cfc << std::setw(12) << std::setfill('0') << vtkFileSequence_;
     vtkFileName = vtkDir_ + "/" + name_ + "_" + cfc.str() + ".vtk";
     vtkFilePtr_.reset(new OFstream(vtkFileName));
+
+    const label nPts  = elements_.size() + 1;   // P1[0], P1[1], ..., P2[last]
+    const label nCells = elements_.size();       // one line segment per element
+
     vtkFilePtr_()
         << "# vtk DataFile Version 3.0" << nl
         << "actuator cable line " << name_ << nl
         << "ASCII" << nl
         << "DATASET POLYDATA" << nl;
-    // Points
-    vtkFilePtr_() << "POINTS " << elements_.size() << " double" << nl;
+
+    // ------------------------------------------------------------------
+    // Points: P1 of every element + P2 of the last element
+    // ------------------------------------------------------------------
+    vtkFilePtr_() << "POINTS " << nPts << " double" << nl;
     forAll(elements_, i)
     {
-        vector p = elements_[i].position();
+        vector p = elements_[i].P1();
         vtkFilePtr_() << p[0] << " " << p[1] << " " << p[2] << nl;
     }
-    // Connectivity
-    vtkFilePtr_() << "LINES 1 " << elements_.size() + 1 << nl;
-    vtkFilePtr_() << elements_.size() << " ";
-    forAll(elements_, i) vtkFilePtr_() << i << " ";
-    vtkFilePtr_() << nl << endl;
-    // Point data
-    vtkFilePtr_() << "POINT_DATA " << elements_.size() << nl;
+    {
+        vector p = elements_.last().P2();
+        vtkFilePtr_() << p[0] << " " << p[1] << " " << p[2] << nl;
+    }
+
+    // ------------------------------------------------------------------
+    // Connectivity: one line segment per element (2 indices each)
+    // Total integers = nCells * (1 count + 2 node indices) = nCells * 3
+    // ------------------------------------------------------------------
+    vtkFilePtr_() << "LINES " << nCells << " " << nCells * 3 << nl;
+    forAll(elements_, i)
+        vtkFilePtr_() << "2 " << i << " " << (i + 1) << nl;
+    vtkFilePtr_() << nl;
+
+    // ------------------------------------------------------------------
+    // Cell data: one value per element (matches nCells)
+    // ------------------------------------------------------------------
+    vtkFilePtr_() << "CELL_DATA " << nCells << nl;
+
     // Velocity
     vtkFilePtr_() << "VECTORS Velocity double" << nl;
     forAll(elements_, i)
@@ -999,37 +1019,42 @@ void Foam::fv::actuatorCableLineSource::writeVTK()
         vector v = elements_[i].velocity();
         vtkFilePtr_() << v[0] << " " << v[1] << " " << v[2] << nl;
     }
-    vtkFilePtr_() << endl;
-        // Hydrodynamic force
+    vtkFilePtr_() << nl;
+
+    // Hydrodynamic drag force
     vtkFilePtr_() << "VECTORS DragForce double" << nl;
     forAll(elements_, i)
     {
         vector f = elements_[i].dragForce();
         vtkFilePtr_() << f[0] << " " << f[1] << " " << f[2] << nl;
     }
-    vtkFilePtr_() << endl;
-    // Hydrodynamic force
+    vtkFilePtr_() << nl;
+
+    // Cable structural force
     vtkFilePtr_() << "VECTORS CableForce double" << nl;
     forAll(elements_, i)
     {
         vector f = elements_[i].cableForce();
         vtkFilePtr_() << f[0] << " " << f[1] << " " << f[2] << nl;
     }
-    vtkFilePtr_() << endl;
-    // Deformation
+    vtkFilePtr_() << nl;
+
+    // Deformation (midpoint displacement from reference)
     vtkFilePtr_() << "VECTORS Deformation double" << nl;
     forAll(elements_, i)
     {
         vector d = elements_[i].deformation();
         vtkFilePtr_() << d[0] << " " << d[1] << " " << d[2] << nl;
     }
-    vtkFilePtr_() << endl;
+    vtkFilePtr_() << nl;
+
     // Element tension (scalar)
     vtkFilePtr_() << "SCALARS Tension double 1" << nl
                   << "LOOKUP_TABLE default" << nl;
     forAll(elements_, i)
         vtkFilePtr_() << elements_[i].tension() << nl;
-    vtkFilePtr_() << endl;
+    vtkFilePtr_() << nl;
+
     // Net buoyancy force
     vtkFilePtr_() << "VECTORS BuoyancyForce double" << nl;
     forAll(elements_, i)
@@ -1037,7 +1062,8 @@ void Foam::fv::actuatorCableLineSource::writeVTK()
         vector b = elements_[i].buoyancyForce();
         vtkFilePtr_() << b[0] << " " << b[1] << " " << b[2] << nl;
     }
-    vtkFilePtr_() << endl;
+    vtkFilePtr_() << nl;
+
     // Span direction
     vtkFilePtr_() << "VECTORS SpanDirection double" << nl;
     forAll(elements_, i)
@@ -1045,7 +1071,9 @@ void Foam::fv::actuatorCableLineSource::writeVTK()
         vector s = elements_[i].spanDirection();
         vtkFilePtr_() << s[0] << " " << s[1] << " " << s[2] << nl;
     }
-    vtkFilePtr_() << endl;
+    vtkFilePtr_() << nl;
+
     vtkFileSequence_++;
 }
+
 // ************************************************************************* //
